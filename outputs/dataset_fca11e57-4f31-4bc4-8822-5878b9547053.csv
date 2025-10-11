@@ -1,0 +1,10 @@
+text,entity,label
+Technology news: Apple launched a new iPhone yesterday with AI-powered camera features.,Apple,ORG
+Technology news: Apple launched a new iPhone yesterday with AI-powered camera features.,iPhone,ORG
+Technology news: Apple launched a new iPhone yesterday with AI-powered camera features.,yesterday,DATE
+Technology news: Apple launched a new iPhone yesterday with AI-powered camera features.,AI,ORG
+Technology news: Apple launched a new iPhone yesterday with AI-powered camera features.,Technology news: Apple launched a new iPhone yesterday with AI-powered camera features.,CATEGORY_TECHNOLOGY
+"However, some users complained about overheating during video recording.","However, some users complained about overheating during video recording.",CATEGORY_TECHNOLOGY
+"Meanwhile, Google announced updates to its Gemini model for better reasoning.",Google,ORG
+"Meanwhile, Google announced updates to its Gemini model for better reasoning.",Gemini,GPE
+"Meanwhile, Google announced updates to its Gemini model for better reasoning.","Meanwhile, Google announced updates to its Gemini model for better reasoning.",CATEGORY_TECHNOLOGY

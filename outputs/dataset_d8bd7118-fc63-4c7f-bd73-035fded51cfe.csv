@@ -1,0 +1,7 @@
+text,entity,label
+Technology news: Apple launched a new iPhone yesterday with AI-powered camera features.,Apple,ORG
+Technology news: Apple launched a new iPhone yesterday with AI-powered camera features.,iPhone,ORG
+Technology news: Apple launched a new iPhone yesterday with AI-powered camera features.,yesterday,DATE
+Technology news: Apple launched a new iPhone yesterday with AI-powered camera features.,AI,ORG
+"Meanwhile, Google announced updates to its Gemini model for better reasoning.",Google,ORG
+"Meanwhile, Google announced updates to its Gemini model for better reasoning.",Gemini,GPE

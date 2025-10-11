@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text2Dataset - Convert Text to Dataset</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-database"></i> Text2Dataset</h1>
+            <p>Convert raw text into clean, labeled datasets for AI/ML projects</p>
+        </header>
+
+        <main>
+            <div class="card">
+                <h2>Upload or Paste Text</h2>
+
+                {% if error %}
+                <div class="error-message">
+                    <p>{{ error }}</p>
+                </div>
+                {% endif %}
+
+                <form id="dataset-form" action="/generate" method="post" enctype="multipart/form-data">
+                    <div class="input-group">
+                        <label for="text_input">Paste Text:</label>
+                        <textarea id="text_input" name="text_input" rows="8"
+                            placeholder="Paste your text content here..."></textarea>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="file_upload">Or Upload File:</label>
+                        <input type="file" id="file_upload" name="file_upload" accept=".txt,.pdf,.docx">
+                    </div>
+
+                    <div class="options">
+                        <div class="option-group">
+                            <label for="output_format">Output Format:</label>
+                            <select id="output_format" name="output_format">
+                                <option value="csv">CSV</option>
+                                <option value="json">JSON</option>
+                                <option value="spacy">spaCy Format (JSON)</option>
+                            </select>
+                        </div>
+
+                        <div class="option-group">
+                            <label for="mode">Processing Mode:</label>
+                            <select id="mode" name="mode">
+                                <option value="fast">Fast Mode (Rule-based)</option>
+                                <option value="smart">Smart Mode (AI-powered)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="generate-btn">
+                        <i class="fas fa-cogs"></i> Generate Dataset
+                    </button>
+                </form>
+
+                <!-- Hidden iframe for file download -->
+                <iframe id="download-frame" style="display:none;"></iframe>
+            </div>
+
+            <div class="features">
+                <div class="feature">
+                    <i class="fas fa-bolt"></i>
+                    <h3>Fast Mode</h3>
+                    <p>Rule-based NLP using spaCy for quick processing</p>
+                </div>
+
+                <div class="feature">
+                    <i class="fas fa-robot"></i>
+                    <h3>Smart Mode</h3>
+                    <p>AI-powered processing with lightweight classification</p>
+                </div>
+
+                <div class="feature">
+                    <i class="fas fa-file-export"></i>
+                    <h3>Multiple Formats</h3>
+                    <p>Export to CSV, JSON, or spaCy format for your ML workflows</p>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Made with <i class="fas fa-heart"></i> for AI researchers and developers</p>
+            <p><a href="https://github.com" target="_blank"><i class="fab fa-github"></i> View on GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('dataset-form').addEventListener('submit', function (e) {
+            e.preventDefault(); // Prevent default form submission
+
+            const btn = document.getElementById('generate-btn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            btn.disabled = true;
+
+            // Create FormData object
+            const formData = new FormData(this);
+
+            // Send request using fetch
+            fetch('/generate', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => {
+                    if (response.ok) {
+                        // Create a blob from the response
+                        return response.blob();
+                    }
+                    throw new Error('Network response was not ok.');
+                })
+                .then(blob => {
+                    // Determine filename based on output format
+                    const outputFormat = document.getElementById('output_format').value;
+                    let filename = 'dataset.csv';
+                    if (outputFormat === 'json') {
+                        filename = 'dataset.json';
+                    } else if (outputFormat === 'spacy') {
+                        filename = 'dataset_spacy.json';
+                    }
+
+                    // Create a download link
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+
+                    // Clean up
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    // Reset button
+                    btn.innerHTML = '<i class="fas fa-cogs"></i> Generate Dataset';
+                    btn.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // Reset button even if there's an error
+                    btn.innerHTML = '<i class="fas fa-cogs"></i> Generate Dataset';
+                    btn.disabled = false;
+                    alert('An error occurred during processing. Please try again.');
+                });
+        });
+    </script>
+</body>
+
+</html>
