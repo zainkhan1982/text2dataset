@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataset History - Text2Dataset</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-database"></i> Text2Dataset</h1>
+            <p>Convert raw text into clean, labeled datasets for AI/ML projects</p>
+        </header>
+
+        <main>
+            <div class="card">
+                <div class="header-actions">
+                    <h2><i class="fas fa-history"></i> Dataset History</h2>
+                    <a href="/" class="btn-secondary"><i class="fas fa-arrow-left"></i> Back to Generator</a>
+                </div>
+
+                {% if datasets %}
+                <div class="history-list">
+                    {% for dataset in datasets %}
+                    <div class="history-item">
+                        <div class="history-info">
+                            <h3>{{ dataset.filename }}</h3>
+                            <div class="history-details">
+                                <span class="badge badge-{{ dataset.mode }}">{{ dataset.mode|title }} Mode</span>
+                                <span class="badge badge-{{ dataset.format }}">{{ dataset.format|upper }} Format</span>
+                                <span class="badge badge-info">{{ dataset.entity_count }} entities</span>
+                                <span class="timestamp">{{ dataset.timestamp[:19].replace("T", " ") }}</span>
+                            </div>
+                        </div>
+                        <div class="history-actions">
+                            <a href="/download/{{ dataset.id }}" class="btn-primary">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox fa-3x"></i>
+                    <h3>No Datasets Found</h3>
+                    <p>You haven't created any datasets yet. Go to the generator to create your first dataset!</p>
+                    <a href="/" class="btn-primary">Create Dataset</a>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+
+        <footer>
+            <p>Made with <i class="fas fa-heart"></i> for AI researchers and developers</p>
+            <p><a href="https://github.com" target="_blank"><i class="fab fa-github"></i> View on GitHub</a></p>
+        </footer>
+    </div>
+</body>
+
+</html>

@@ -87,6 +87,34 @@ def clean_text(text: str) -> str:
     if not text:
         return ""
     
+    # Fix UTF-8 encoding issues (Â£ -> £ and other Â prefixed characters)
+    # This handles cases where UTF-8 encoded characters are misinterpreted
+    text = text.replace('Â£', '£')   # British pound
+    text = text.replace('Â€', '€')   # Euro
+    text = text.replace('Â¥', '¥')   # Yen
+    text = text.replace('Â¢', '¢')   # Cent
+    text = text.replace('Â¤', '¤')   # Currency sign
+    text = text.replace('Â§', '§')   # Section sign
+    text = text.replace('Â¶', '¶')   # Paragraph sign
+    text = text.replace('Â°', '°')   # Degree symbol
+    text = text.replace('Â±', '±')   # Plus-minus sign
+    text = text.replace('Â¼', '¼')   # Fraction one quarter
+    text = text.replace('Â½', '½')   # Fraction one half
+    text = text.replace('Â¾', '¾')   # Fraction three quarters
+    text = text.replace('Â×', '×')   # Multiplication sign
+    text = text.replace('Â÷', '÷')   # Division sign
+    
+    # Handle other common encoding issues
+    text = text.replace('Ã©', 'é')   # e acute
+    text = text.replace('Ã¨', 'è')   # e grave
+    text = text.replace('Ãª', 'ê')   # e circumflex
+    text = text.replace('Ã«', 'ë')   # e diaeresis
+    text = text.replace('Ã¡', 'á')   # a acute
+    text = text.replace('Ã¢', 'â')   # a circumflex
+    text = text.replace('Ã£', 'ã')   # a tilde
+    text = text.replace('Ã¤', 'ä')   # a diaeresis
+    text = text.replace('Ã±', 'ñ')   # n tilde
+    
     # Normalize common UTF-8 symbols
     text = text.replace('\u201c', '"').replace('\u201d', '"')  # Smart quotes
     text = text.replace('\u2018', "'").replace('\u2019', "'")  # Smart apostrophes
@@ -149,6 +177,19 @@ def is_meaningful_entity(entity_text: str, label: str) -> bool:
         if not (has_symbol or has_word):
             return False
     
+    # Special handling for time-like MONEY entities (e.g., "£5.60 an hour")
+    if label == "TIME" and re.search(r'[£$€¥][0-9,.]+\s*(?:an\s+hour|per\s+hour|hour)', entity_text.lower()):
+        return False  # Let the MONEY regex pattern catch these instead
+    
+    # Filter out ambiguous phrases like "the end of"
+    ambiguous_phrases = [
+        'the end of', 'the beginning of', 'the start of', 'the middle of',
+        'end of', 'beginning of', 'start of', 'middle of',
+        'a period', 'the period', 'period of'
+    ]
+    if any(phrase in entity_text.lower() for phrase in ambiguous_phrases):
+        return False
+    
     return True
 
 def extract_entities_fallback(sentence: str) -> List[Dict]:
@@ -161,6 +202,9 @@ def extract_entities_fallback(sentence: str) -> List[Dict]:
     Returns:
         List[Dict]: List of extracted entities
     """
+    # Clean the sentence first to fix encoding issues
+    sentence = clean_text(sentence)
+    
     entities = []
     
     # Pattern for dates
@@ -205,8 +249,9 @@ def extract_entities_fallback(sentence: str) -> List[Dict]:
                 "label": "PHONE"
             })
     
-    # Pattern for money/currency
+    # Pattern for money/currency (enhanced to catch time-like MONEY entities)
     money_patterns = [
+        r'[£$€¥][0-9,]+(?:\.[0-9]{2})?\s*(?:an\s+hour|per\s+hour|hour)',  # Special pattern for hourly rates (must come first)
         r'\$[0-9,]+(?:\.[0-9]{2})?',
         r'£[0-9,]+(?:\.[0-9]{2})?',
         r'€[0-9,]+(?:\.[0-9]{2})?',

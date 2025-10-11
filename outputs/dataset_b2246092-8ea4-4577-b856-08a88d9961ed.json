@@ -1,0 +1,292 @@
+[
+  [
+    "Budget to set scene for election Gordon Brown will seek to put the economy at the centre of Labour's bid for a third term in power when he delivers his ninth Budget at 1230 GMT.",
+    {
+      "entities": [
+        [
+          33,
+          45,
+          "PERSON"
+        ],
+        [
+          92,
+          98,
+          "ORG"
+        ],
+        [
+          111,
+          116,
+          "ORDINAL"
+        ],
+        [
+          0,
+          6,
+          "ORG"
+        ],
+        [
+          173,
+          176,
+          "FAC"
+        ]
+      ]
+    }
+  ],
+  [
+    "But the Conservatives and Lib Dems insist voters face higher taxes and more means-testing under Labour.",
+    {
+      "entities": [
+        [
+          8,
+          21,
+          "NORP"
+        ],
+        [
+          30,
+          34,
+          "NORP"
+        ],
+        [
+          96,
+          102,
+          "ORG"
+        ]
+      ]
+    }
+  ],
+  [
+    "Treasury officials have said there will not be a pre-election giveaway, but Mr Brown is thought to have about Â£2bn to spare.",
+    {
+      "entities": [
+        [
+          0,
+          8,
+          "ORG"
+        ],
+        [
+          76,
+          84,
+          "PERSON"
+        ]
+      ]
+    }
+  ],
+  [
+    "- Increase in the stamp duty threshold from Â£60,000 - A freeze on petrol duty - An extension of tax credit scheme for poorer families - Possible help for pensioners The stamp duty threshold rise is intended to help first-time buyers - a likely theme of all three of the main parties' general election manifestos.",
+    {
+      "entities": [
+        [
+          216,
+          221,
+          "ORDINAL"
+        ],
+        [
+          258,
+          263,
+          "CARDINAL"
+        ]
+      ]
+    }
+  ],
+  [
+    "Ten years ago, buyers had a much greater chance of avoiding stamp duty, with close to half a million properties, in England and Wales alone, selling for less than Â£60,000.",
+    {
+      "entities": [
+        [
+          0,
+          13,
+          "DATE"
+        ],
+        [
+          77,
+          100,
+          "CARDINAL"
+        ],
+        [
+          116,
+          123,
+          "GPE"
+        ],
+        [
+          128,
+          133,
+          "GPE"
+        ],
+        [
+          153,
+          162,
+          "CARDINAL"
+        ]
+      ]
+    }
+  ],
+  [
+    "Since then, average UK property prices have more than doubled while the starting threshold for stamp duty has not increased.",
+    {
+      "entities": [
+        [
+          20,
+          22,
+          "GPE"
+        ]
+      ]
+    }
+  ],
+  [
+    "The Liberal Democrats unveiled their own proposals to raise the stamp duty threshold to Â£150,000 in February.",
+    {
+      "entities": [
+        [
+          12,
+          21,
+          "NORP"
+        ],
+        [
+          101,
+          109,
+          "DATE"
+        ]
+      ]
+    }
+  ],
+  [
+    "The Tories are also thought likely to propose increased thresholds, with shadow chancellor Oliver Letwin branding stamp duty a \"classic Labour stealth tax\".",
+    {
+      "entities": [
+        [
+          4,
+          10,
+          "NORP"
+        ],
+        [
+          91,
+          104,
+          "PERSON"
+        ],
+        [
+          136,
+          142,
+          "ORG"
+        ]
+      ]
+    }
+  ],
+  [
+    "They say whatever the chancellor gives away will be clawed back in higher taxes if Labour is returned to power.",
+    {
+      "entities": [
+        [
+          83,
+          89,
+          "ORG"
+        ]
+      ]
+    }
+  ],
+  [
+    "Shadow Treasury chief secretary George Osborne said there had been a sharp deterioration in the public finances.",
+    {
+      "entities": [
+        [
+          7,
+          15,
+          "ORG"
+        ],
+        [
+          32,
+          46,
+          "PERSON"
+        ]
+      ]
+    }
+  ],
+  [
+    "If Labour is elected there will be a substantial tax increase in the Budget after the election, of the order of around Â£10bn.",
+    {
+      "entities": [
+        [
+          3,
+          9,
+          "ORG"
+        ],
+        [
+          69,
+          75,
+          "ORG"
+        ]
+      ]
+    }
+  ],
+  [
+    "But Mr Brown's former advisor Ed Balls said an examination of Tory plans for the economy showed there would be a Â£35bn difference in investment by the end of the next parliament.",
+    {
+      "entities": [
+        [
+          7,
+          12,
+          "PERSON"
+        ],
+        [
+          30,
+          38,
+          "PERSON"
+        ],
+        [
+          62,
+          66,
+          "ORG"
+        ]
+      ]
+    }
+  ],
+  [
+    "For the Lib Dems, David Laws said the chancellor will no doubt tell us how wonderfully the economy is doing, but that much of it is built on an increase in personal and consumer debt, which makes the economy vulnerable.",
+    {
+      "entities": [
+        [
+          12,
+          16,
+          "NORP"
+        ],
+        [
+          18,
+          28,
+          "PERSON"
+        ]
+      ]
+    }
+  ],
+  [
+    "SNP leader Alex Salmond said his party would introduce a Â£2,000 grant for first-time buyers, reduce corporation tax and introduce a citizen's pension free from means testing.",
+    {
+      "entities": [
+        [
+          0,
+          3,
+          "ORG"
+        ],
+        [
+          11,
+          23,
+          "PERSON"
+        ],
+        [
+          75,
+          80,
+          "ORDINAL"
+        ]
+      ]
+    }
+  ],
+  [
+    "Plaid Cymru's economics spokesman Adam Price said he wanted help to get people on the housing ladder and an increase in the minimum wage to Â£5.60 an hour.",
+    {
+      "entities": [
+        [
+          34,
+          44,
+          "PERSON"
+        ]
+      ]
+    }
+  ]
+]

@@ -11,6 +11,7 @@ from preprocess import clean_text, split_sentences
 from labeling_fast import label_entities_fast, convert_to_spacy_format as convert_fast_to_spacy
 from labeling_smart import label_entities_smart, convert_to_spacy_format as convert_smart_to_spacy
 from exporter import export_to_csv, export_to_json
+from dataset_history import dataset_history
 
 app = FastAPI()
 
@@ -23,7 +24,23 @@ os.makedirs("outputs", exist_ok=True)
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    # Get recent datasets for display
+    recent_datasets = dataset_history.get_recent_datasets(5)
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "recent_datasets": recent_datasets
+    })
+
+@app.get("/history", response_class=HTMLResponse)
+async def history_page(request: Request):
+    """Display dataset history page"""
+    all_datasets = dataset_history.get_history()
+    # Sort by timestamp (newest first)
+    all_datasets.sort(key=lambda x: x['timestamp'], reverse=True)
+    return templates.TemplateResponse("history.html", {
+        "request": request,
+        "datasets": all_datasets
+    })
 
 @app.post("/generate")
 async def generate_dataset(
@@ -68,16 +85,20 @@ async def generate_dataset(
                 spacy_data = convert_fast_to_spacy(sentences)
             
             # Save as JSON
-            filename = f"outputs/dataset_{file_id}.json"
-            with open(filename, 'w', encoding='utf-8') as f:
+            filename = f"dataset_{file_id}_spacy.json"
+            filepath = f"outputs/{filename}"
+            with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(spacy_data, f, ensure_ascii=False, indent=2)
             
+            # Add to history
+            dataset_history.add_to_history(filename, mode, output_format, len(spacy_data))
+            
             # Return file content as response with appropriate headers for download
-            with open(filename, "rb") as f:
+            with open(filepath, "rb") as f:
                 content = f.read()
             
             headers = {
-                "Content-Disposition": f"attachment; filename=dataset_spacy.json",
+                "Content-Disposition": f"attachment; filename={filename}",
                 "Content-Type": "application/json"
             }
             
@@ -93,26 +114,29 @@ async def generate_dataset(
         df = pd.DataFrame(labeled_data)
         
         if output_format == "json":
-            filename = f"outputs/dataset_{file_id}.json"
-            export_to_json(df, filename)
+            filename = f"dataset_{file_id}.json"
+            filepath = f"outputs/{filename}"
+            export_to_json(df, filepath)
         else:  # Default to CSV
-            filename = f"outputs/dataset_{file_id}.csv"
-            export_to_csv(df, filename)
+            filename = f"dataset_{file_id}.csv"
+            filepath = f"outputs/{filename}"
+            export_to_csv(df, filepath)
+        
+        # Add to history
+        dataset_history.add_to_history(filename, mode, output_format, len(labeled_data))
         
         # Return file content as response with appropriate headers for download
-        with open(filename, "rb") as f:
+        with open(filepath, "rb") as f:
             content = f.read()
         
         # Set appropriate content type and headers for file download
         if output_format == "json":
             media_type = "application/json"
-            file_extension = "json"
         else:
             media_type = "text/csv"
-            file_extension = "csv"
         
         headers = {
-            "Content-Disposition": f"attachment; filename=dataset.{file_extension}",
+            "Content-Disposition": f"attachment; filename={filename}",
             "Content-Type": media_type
         }
         
@@ -123,6 +147,39 @@ async def generate_dataset(
             "request": request, 
             "error": f"An error occurred: {str(e)}"
         })
+
+@app.get("/download/{dataset_id}")
+async def download_dataset(dataset_id: int):
+    """Download a previously created dataset"""
+    try:
+        dataset = dataset_history.get_dataset_by_id(dataset_id)
+        if not dataset:
+            return Response(content="Dataset not found", status_code=404)
+        
+        file_path = dataset["file_path"]
+        if not os.path.exists(file_path):
+            return Response(content="File not found", status_code=404)
+        
+        # Determine media type based on file extension
+        if file_path.endswith(".json"):
+            media_type = "application/json"
+        elif file_path.endswith(".csv"):
+            media_type = "text/csv"
+        else:
+            media_type = "application/octet-stream"
+        
+        with open(file_path, "rb") as f:
+            content = f.read()
+        
+        headers = {
+            "Content-Disposition": f"attachment; filename={dataset['filename']}",
+            "Content-Type": media_type
+        }
+        
+        return Response(content=content, headers=headers, media_type=media_type)
+    
+    except Exception as e:
+        return Response(content=f"Error downloading file: {str(e)}", status_code=500)
 
 if __name__ == "__main__":
     import uvicorn

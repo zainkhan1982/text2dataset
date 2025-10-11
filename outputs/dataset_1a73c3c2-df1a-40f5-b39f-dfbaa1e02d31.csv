@@ -1,0 +1,43 @@
+text,entity,label
+Budget to set scene for election Gordon Brown will seek to put the economy at the centre of Labour's bid for a third term in power when he delivers his ninth Budget at 1230 GMT.,Gordon Brown,PERSON
+Budget to set scene for election Gordon Brown will seek to put the economy at the centre of Labour's bid for a third term in power when he delivers his ninth Budget at 1230 GMT.,Labour,ORG
+Budget to set scene for election Gordon Brown will seek to put the economy at the centre of Labour's bid for a third term in power when he delivers his ninth Budget at 1230 GMT.,third,ORDINAL
+Budget to set scene for election Gordon Brown will seek to put the economy at the centre of Labour's bid for a third term in power when he delivers his ninth Budget at 1230 GMT.,Budget,ORG
+Budget to set scene for election Gordon Brown will seek to put the economy at the centre of Labour's bid for a third term in power when he delivers his ninth Budget at 1230 GMT.,1230,DATE
+Budget to set scene for election Gordon Brown will seek to put the economy at the centre of Labour's bid for a third term in power when he delivers his ninth Budget at 1230 GMT.,GMT,FAC
+"The chancellor is expected to freeze petrol duty and raise the stamp duty threshold from Â£60,000.","Â£60,000",CARDINAL
+But the Conservatives and Lib Dems insist voters face higher taxes and more means-testing under Labour.,Conservatives,NORP
+But the Conservatives and Lib Dems insist voters face higher taxes and more means-testing under Labour.,Dems,NORP
+But the Conservatives and Lib Dems insist voters face higher taxes and more means-testing under Labour.,Labour,ORG
+"Treasury officials have said there will not be a pre-election giveaway, but Mr Brown is thought to have about Â£2bn to spare.",Treasury,ORG
+"Treasury officials have said there will not be a pre-election giveaway, but Mr Brown is thought to have about Â£2bn to spare.",Mr Brown,PERSON
+"- Increase in the stamp duty threshold from Â£60,000 - A freeze on petrol duty - An extension of tax credit scheme for poorer families - Possible help for pensioners The stamp duty threshold rise is intended to help first-time buyers - a likely theme of all three of the main parties' general election manifestos.",first,ORDINAL
+"- Increase in the stamp duty threshold from Â£60,000 - A freeze on petrol duty - An extension of tax credit scheme for poorer families - Possible help for pensioners The stamp duty threshold rise is intended to help first-time buyers - a likely theme of all three of the main parties' general election manifestos.",three,CARDINAL
+"Ten years ago, buyers had a much greater chance of avoiding stamp duty, with close to half a million properties, in England and Wales alone, selling for less than Â£60,000.",Ten years ago,DATE
+"Ten years ago, buyers had a much greater chance of avoiding stamp duty, with close to half a million properties, in England and Wales alone, selling for less than Â£60,000.",close to half a million,CARDINAL
+"Ten years ago, buyers had a much greater chance of avoiding stamp duty, with close to half a million properties, in England and Wales alone, selling for less than Â£60,000.",England,GPE
+"Ten years ago, buyers had a much greater chance of avoiding stamp duty, with close to half a million properties, in England and Wales alone, selling for less than Â£60,000.",Wales,GPE
+"Ten years ago, buyers had a much greater chance of avoiding stamp duty, with close to half a million properties, in England and Wales alone, selling for less than Â£60,000.",less than,CARDINAL
+"Since then, average UK property prices have more than doubled while the starting threshold for stamp duty has not increased.",UK,GPE
+"The Liberal Democrats unveiled their own proposals to raise the stamp duty threshold to Â£150,000 in February.",Democrats,NORP
+"The Liberal Democrats unveiled their own proposals to raise the stamp duty threshold to Â£150,000 in February.",February,DATE
+"The Tories are also thought likely to propose increased thresholds, with shadow chancellor Oliver Letwin branding stamp duty a ""classic Labour stealth tax"".",Tories,NORP
+"The Tories are also thought likely to propose increased thresholds, with shadow chancellor Oliver Letwin branding stamp duty a ""classic Labour stealth tax"".",Oliver Letwin,PERSON
+"The Tories are also thought likely to propose increased thresholds, with shadow chancellor Oliver Letwin branding stamp duty a ""classic Labour stealth tax"".",Labour,ORG
+They say whatever the chancellor gives away will be clawed back in higher taxes if Labour is returned to power.,Labour,ORG
+Shadow Treasury chief secretary George Osborne said there had been a sharp deterioration in the public finances.,Treasury,ORG
+Shadow Treasury chief secretary George Osborne said there had been a sharp deterioration in the public finances.,George Osborne,PERSON
+"If Labour is elected there will be a substantial tax increase in the Budget after the election, of the order of around Â£10bn.",Labour,ORG
+"If Labour is elected there will be a substantial tax increase in the Budget after the election, of the order of around Â£10bn.",Budget,ORG
+But Mr Brown's former advisor Ed Balls said an examination of Tory plans for the economy showed there would be a Â£35bn difference in investment by the end of the next parliament.,Brown,PERSON
+But Mr Brown's former advisor Ed Balls said an examination of Tory plans for the economy showed there would be a Â£35bn difference in investment by the end of the next parliament.,Ed Balls,PERSON
+But Mr Brown's former advisor Ed Balls said an examination of Tory plans for the economy showed there would be a Â£35bn difference in investment by the end of the next parliament.,Tory,ORG
+But Mr Brown's former advisor Ed Balls said an examination of Tory plans for the economy showed there would be a Â£35bn difference in investment by the end of the next parliament.,the end of the,DATE
+"For the Lib Dems, David Laws said the chancellor will no doubt tell us how wonderfully the economy is doing, but that much of it is built on an increase in personal and consumer debt, which makes the economy vulnerable.",Dems,NORP
+"For the Lib Dems, David Laws said the chancellor will no doubt tell us how wonderfully the economy is doing, but that much of it is built on an increase in personal and consumer debt, which makes the economy vulnerable.",David Laws,PERSON
+"SNP leader Alex Salmond said his party would introduce a Â£2,000 grant for first-time buyers, reduce corporation tax and introduce a citizen's pension free from means testing.",SNP,ORG
+"SNP leader Alex Salmond said his party would introduce a Â£2,000 grant for first-time buyers, reduce corporation tax and introduce a citizen's pension free from means testing.",Alex Salmond,PERSON
+"SNP leader Alex Salmond said his party would introduce a Â£2,000 grant for first-time buyers, reduce corporation tax and introduce a citizen's pension free from means testing.","Â£2,000",NORP
+"SNP leader Alex Salmond said his party would introduce a Â£2,000 grant for first-time buyers, reduce corporation tax and introduce a citizen's pension free from means testing.",first,ORDINAL
+Plaid Cymru's economics spokesman Adam Price said he wanted help to get people on the housing ladder and an increase in the minimum wage to Â£5.60 an hour.,Adam Price,PERSON
+Plaid Cymru's economics spokesman Adam Price said he wanted help to get people on the housing ladder and an increase in the minimum wage to Â£5.60 an hour.,Â£5.60 an hour,TIME

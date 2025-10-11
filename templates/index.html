@@ -18,7 +18,10 @@
 
         <main>
             <div class="card">
-                <h2>Upload or Paste Text</h2>
+                <div class="header-actions">
+                    <h2>Upload or Paste Text</h2>
+                    <a href="/history" class="btn-secondary"><i class="fas fa-history"></i> View History</a>
+                </div>
 
                 {% if error %}
                 <div class="error-message">
@@ -65,6 +68,37 @@
                 <!-- Hidden iframe for file download -->
                 <iframe id="download-frame" style="display:none;"></iframe>
             </div>
+
+            <!-- Recent Datasets Section -->
+            {% if recent_datasets %}
+            <div class="card">
+                <h2><i class="fas fa-clock"></i> Recent Datasets</h2>
+                <div class="recent-datasets">
+                    {% for dataset in recent_datasets %}
+                    <div class="dataset-item">
+                        <div class="dataset-info">
+                            <h4>{{ dataset.filename }}</h4>
+                            <div class="dataset-meta">
+                                <span class="badge badge-{{ dataset.mode }}">{{ dataset.mode|title }} Mode</span>
+                                <span class="badge badge-{{ dataset.format }}">{{ dataset.format|upper }} Format</span>
+                                <span class="badge badge-info">{{ dataset.entity_count }} entities</span>
+                            </div>
+                        </div>
+                        <div class="dataset-actions">
+                            <a href="/download/{{ dataset.id }}" class="btn-small">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="view-all-history">
+                    <a href="/history" class="btn-secondary">
+                        <i class="fas fa-history"></i> View All History
+                    </a>
+                </div>
+            </div>
+            {% endif %}
 
             <div class="features">
                 <div class="feature">
@@ -141,6 +175,11 @@
                     // Reset button
                     btn.innerHTML = '<i class="fas fa-cogs"></i> Generate Dataset';
                     btn.disabled = false;
+
+                    // Optionally, reload the page to show updated history
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
                 })
                 .catch(error => {
                     console.error('Error:', error);
