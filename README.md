@@ -1,144 +1,105 @@
-# Text2Dataset
+# Text2Dataset - From Raw Text to Premium Dataset
 
-Convert raw text into clean, labeled datasets for AI/ML projects.
+Text2Dataset is a web application that converts raw text into clean, labeled datasets for AI/ML projects. It features both Fast Mode (rule-based) and Smart Mode (AI-powered) processing with support for multiple output formats.
 
-## 📝 Project Overview
+## Features
 
-Text2Dataset is a web application that transforms unstructured text into structured, labeled datasets ready for machine learning training. It helps students, researchers, startups, and AI hobbyists quickly prepare high-quality datasets without manual cleaning or labeling.
+- **Fast Mode**: Rule-based NLP using spaCy for quick processing
+- **Smart Mode**: AI-powered processing with lightweight classification
+- **Multiple Formats**: Export to CSV, JSON, or spaCy format
+- **Community Sharing**: Share and discover datasets with other researchers
+- **Dataset History**: Keep track of previously created datasets
+- **MongoDB Integration**: Online community dataset storage
 
-## 🎯 Features
+## Prerequisites
 
-- **Two Processing Modes**:
-  - 🧩 Fast Mode: Rule-based NLP using spaCy and KeyBERT
-  - 🤖 Smart Mode: AI-powered processing with transformers
-- **Multiple Output Formats**: CSV, JSON
-- **Simple UI**: Clean, responsive interface with progress indicators
-- **File Support**: Upload TXT files or paste text directly
+- Python 3.8 or higher
+- pip (Python package installer)
 
-## 🚀 Getting Started
+## Installation
 
-### Prerequisites
-
-- Python 3.10+
-- pip package manager
-
-### Installation
-
-1. Clone the repository:
-
-   ```bash
-   git clone <repository-url>
-   cd text2dataset
-   ```
-
-2. Create a virtual environment:
-
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-
+1. Clone or download this repository
+2. Install the required packages:
    ```bash
    pip install -r requirements.txt
    ```
-
-4. Download spaCy language model:
+3. Download the spaCy language model:
    ```bash
    python -m spacy download en_core_web_sm
    ```
 
-### Running the Application
+## Usage
 
-1. Start the server:
+### Local Development
 
+1. Run the application:
    ```bash
    python app.py
    ```
+2. Open your browser and navigate to `http://localhost:8002`
 
-2. Open your browser and navigate to `http://localhost:8000`
+### Deployment Options
 
-## 🛠️ Usage
+#### Railway (Recommended for Free Deployment)
 
-1. Paste text or upload a TXT file
-2. Select output format (CSV/JSON)
-3. Choose processing mode (Fast/Smart)
-4. Click "Generate Dataset"
-5. Download the processed dataset
+1. Go to [Railway.app](https://railway.app/)
+2. Create an account
+3. Create a new project
+4. Connect your GitHub repository or upload your code
+5. Set environment variables:
+   - `MONGODB_URI`: `mongodb+srv://Zain_admin:2ea898dxeI%40@cluster0.flv8jkk.mongodb.net/`
+6. Add a requirements.txt file with all dependencies
+7. Set the start command to: `python app.py`
 
-## 📁 Project Structure
+#### Heroku
 
-```
-text2dataset/
-├── app.py                  # FastAPI backend
-├── preprocess.py           # Text cleaning and sentence splitting
-├── labeling_fast.py        # spaCy + KeyBERT processing
-├── labeling_smart.py       # Transformers processing
-├── exporter.py             # Format conversion
-├── requirements.txt        # Python dependencies
-├── templates/
-│   └── index.html          # Frontend template
-├── static/
-│   └── style.css           # Styling
-└── outputs/                # Generated datasets (auto-created)
-```
+1. Install Heroku CLI
+2. Create a new Heroku app
+3. Set environment variables:
+   - `MONGODB_URI`: `mongodb+srv://Zain_admin:2ea898dxeI%40@cluster0.flv8jkk.mongodb.net/`
+4. Deploy using `git push heroku main`
 
-## 🔧 Technical Details
+#### Render
 
-### Fast Mode (Rule-based)
+1. Go to [render.com](https://render.com/)
+2. Create a new Web Service
+3. Connect your GitHub repository
+4. Set environment variables:
+   - `MONGODB_URI`: `mongodb+srv://Zain_admin:2ea898dxeI%40@cluster0.flv8jkk.mongodb.net/`
+5. Set the build command: `pip install -r requirements.txt`
+6. Set the start command: `python app.py`
 
-- Uses spaCy for Named Entity Recognition (NER)
-- Employs KeyBERT for keyword extraction
-- Regex patterns for common entities (dates, emails, etc.)
+## Environment Variables
 
-### Smart Mode (AI-powered)
+- `MONGODB_URI`: Your MongoDB Atlas connection string (required for community features)
 
-- Uses Hugging Face transformers (`facebook/bart-large-mnli`) for zero-shot classification
-- Combines with spaCy NER for comprehensive labeling
-- Categorizes text into domains like technology, health, sports, etc.
+## Project Structure
 
-## 📊 Example Output
+- `app.py`: Main FastAPI application
+- `preprocess.py`: Text preprocessing functions
+- `labeling_fast.py`: Fast mode entity labeling
+- `labeling_smart.py`: Smart mode entity labeling
+- `exporter.py`: Export functions for different formats
+- `dataset_history.py`: Dataset history tracking
+- `community_datasets.py`: Community dataset sharing with MongoDB integration
+- `templates/`: HTML templates
+- `static/`: CSS and other static files
+- `outputs/`: Generated dataset files
 
-**Input:**
+## API Endpoints
 
-```
-India won the Cricket World Cup in 2011 under the captaincy of MS Dhoni.
-```
+- `GET /`: Main page
+- `GET /history`: Dataset history page
+- `GET /community`: Community datasets page
+- `POST /generate`: Generate dataset from text
+- `GET /download/{dataset_id}`: Download a previously created dataset
+- `POST /share_dataset`: Share a dataset with the community
+- `POST /like_dataset`: Like a community dataset
 
-**Output (CSV):**
+## Contributing
 
-```csv
-text,entity,label
-"India won the Cricket World Cup in 2011 under the captaincy of MS Dhoni.",India,GPE
-"India won the Cricket World Cup in 2011 under the captaincy of MS Dhoni.",Cricket World Cup,EVENT
-"India won the Cricket World Cup in 2011 under the captaincy of MS Dhoni.",MS Dhoni,PERSON
-```
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📦 Dependencies
-
-- FastAPI - Web framework
-- spaCy - NLP library
-- KeyBERT - Keyword extraction
-- transformers - AI models
-- pandas - Data manipulation
-- NLTK - Text processing
-
-## 🌐 API Endpoints
-
-- `GET /` - Serve frontend
-- `POST /generate` - Process text and return dataset
-
-## 📝 License
+## License
 
 This project is licensed under the MIT License.
-
-## 👥 Authors
-
-[Your Name]
-
-## 🙏 Acknowledgments
-
-- spaCy for NLP capabilities
-- Hugging Face for transformer models
-- KeyBERT for keyword extraction

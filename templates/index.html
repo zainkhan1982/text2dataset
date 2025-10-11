@@ -20,12 +20,21 @@
             <div class="card">
                 <div class="header-actions">
                     <h2>Upload or Paste Text</h2>
-                    <a href="/history" class="btn-secondary"><i class="fas fa-history"></i> View History</a>
+                    <div class="nav-buttons">
+                        <a href="/history" class="btn-secondary"><i class="fas fa-history"></i> History</a>
+                        <a href="/community" class="btn-secondary"><i class="fas fa-users"></i> Community</a>
+                    </div>
                 </div>
 
                 {% if error %}
                 <div class="error-message">
                     <p>{{ error }}</p>
+                </div>
+                {% endif %}
+
+                {% if message %}
+                <div class="success-message">
+                    <p>{{ message }}</p>
                 </div>
                 {% endif %}
 
@@ -57,6 +66,11 @@
                                 <option value="fast">Fast Mode (Rule-based)</option>
                                 <option value="smart">Smart Mode (AI-powered)</option>
                             </select>
+                        </div>
+
+                        <div class="option-group">
+                            <label for="custom_name">Custom Name (optional):</label>
+                            <input type="text" id="custom_name" name="custom_name" placeholder="e.g., my_dataset_name">
                         </div>
                     </div>
 
@@ -100,6 +114,96 @@
             </div>
             {% endif %}
 
+            <!-- Share Dataset Section -->
+            <div class="card">
+                <h2><i class="fas fa-share-alt"></i> Share with Community</h2>
+                <p>Share your generated datasets with other researchers and developers.</p>
+
+                <form id="share-form" action="/share_dataset" method="post">
+                    <div class="input-group">
+                        <label for="share_dataset_id">Select Dataset to Share:</label>
+                        <select id="share_dataset_id" name="dataset_id" required>
+                            <option value="">-- Select a Dataset --</option>
+                            {% for dataset in recent_datasets %}
+                            <option value="{{ dataset.id }}">{{ dataset.filename }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="description">Description:</label>
+                        <textarea id="description" name="description" rows="3"
+                            placeholder="Describe your dataset..."></textarea>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="tags">Tags (comma separated):</label>
+                        <input type="text" id="tags" name="tags" placeholder="e.g., news, finance, medical, NER">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="user_name">Your Name (optional):</label>
+                        <input type="text" id="user_name" name="user_name" placeholder="Anonymous">
+                    </div>
+
+                    <button type="submit" class="btn-secondary">
+                        <i class="fas fa-share"></i> Share Dataset
+                    </button>
+                </form>
+            </div>
+
+            <!-- Popular Community Datasets -->
+            {% if popular_datasets %}
+            <div class="card">
+                <h2><i class="fas fa-fire"></i> Popular Community Datasets</h2>
+                <div class="community-datasets">
+                    {% for dataset in popular_datasets %}
+                    <div class="community-dataset-item">
+                        <div class="dataset-header">
+                            <h3>{{ dataset.filename }}</h3>
+                            <div class="dataset-actions">
+                                <span class="likes">
+                                    <i class="fas fa-heart"></i> {{ dataset.likes }}
+                                </span>
+                                <a href="/download/{{ dataset.id }}" class="btn-small">
+                                    <i class="fas fa-download"></i> Download
+                                </a>
+                            </div>
+                        </div>
+
+                        <p class="dataset-description">{{ dataset.description }}</p>
+
+                        <div class="dataset-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-user"></i>
+                                <span>Shared by: {{ dataset.user_name }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-tag"></i>
+                                <span>Tags:
+                                    {% for tag in dataset.tags %}
+                                    <span class="tag">{{ tag }}</span>
+                                    {% endfor %}
+                                </span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-cogs"></i>
+                                <span class="badge badge-{{ dataset.mode }}">{{ dataset.mode|title }} Mode</span>
+                                <span class="badge badge-{{ dataset.format }}">{{ dataset.format|upper }} Format</span>
+                                <span class="badge badge-info">{{ dataset.entity_count }} entities</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="view-all-history">
+                    <a href="/community" class="btn-secondary">
+                        <i class="fas fa-users"></i> View All Community Datasets
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="features">
                 <div class="feature">
                     <i class="fas fa-bolt"></i>
@@ -117,6 +221,12 @@
                     <i class="fas fa-file-export"></i>
                     <h3>Multiple Formats</h3>
                     <p>Export to CSV, JSON, or spaCy format for your ML workflows</p>
+                </div>
+
+                <div class="feature">
+                    <i class="fas fa-users"></i>
+                    <h3>Community</h3>
+                    <p>Share and discover datasets with other researchers</p>
                 </div>
             </div>
         </main>
@@ -187,6 +297,27 @@
                     btn.innerHTML = '<i class="fas fa-cogs"></i> Generate Dataset';
                     btn.disabled = false;
                     alert('An error occurred during processing. Please try again.');
+                });
+        });
+
+        // Handle share form submission
+        document.getElementById('share-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+
+            fetch('/share_dataset', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.text())
+                .then(html => {
+                    // Reload the page to show the success message
+                    location.reload();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while sharing the dataset.');
                 });
         });
     </script>

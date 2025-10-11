@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community Datasets - Text2Dataset</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-users"></i> Text2Dataset Community</h1>
+            <p>Discover and share labeled datasets with other AI/ML researchers</p>
+        </header>
+
+        <main>
+            <div class="card">
+                <div class="header-actions">
+                    <h2><i class="fas fa-search"></i> Search Datasets</h2>
+                    <a href="/" class="btn-secondary"><i class="fas fa-arrow-left"></i> Back to Generator</a>
+                </div>
+
+                <form method="GET" action="/community" class="search-form">
+                    <div class="search-container">
+                        <input type="text" name="search" placeholder="Search datasets..."
+                            value="{{ search_query or '' }}">
+                        <input type="text" name="tags" placeholder="Filter by tags (comma separated)"
+                            value="{{ search_tags or '' }}">
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2><i class="fas fa-database"></i> Community Datasets</h2>
+
+                {% if datasets %}
+                <div class="community-datasets">
+                    {% for dataset in datasets %}
+                    <div class="community-dataset-item">
+                        <div class="dataset-header">
+                            <h3>{{ dataset.filename }}</h3>
+                            <div class="dataset-actions">
+                                <form method="POST" action="/like_dataset" style="display: inline;">
+                                    <input type="hidden" name="dataset_id" value="{{ dataset.id }}">
+                                    <button type="submit" class="btn-like" title="Like this dataset">
+                                        <i class="fas fa-heart"></i> {{ dataset.likes }}
+                                    </button>
+                                </form>
+                                <a href="/download/{{ dataset.id }}" class="btn-primary">
+                                    <i class="fas fa-download"></i> Download
+                                </a>
+                            </div>
+                        </div>
+
+                        <p class="dataset-description">{{ dataset.description }}</p>
+
+                        <div class="dataset-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-user"></i>
+                                <span>Shared by: {{ dataset.user_name }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-tag"></i>
+                                <span>Tags:
+                                    {% for tag in dataset.tags %}
+                                    <span class="tag">{{ tag }}</span>
+                                    {% endfor %}
+                                </span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-cogs"></i>
+                                <span class="badge badge-{{ dataset.mode }}">{{ dataset.mode|title }} Mode</span>
+                                <span class="badge badge-{{ dataset.format }}">{{ dataset.format|upper }} Format</span>
+                                <span class="badge badge-info">{{ dataset.entity_count }} entities</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-download"></i>
+                                <span>{{ dataset.download_count }} downloads</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-calendar"></i>
+                                <span>Shared: {{ dataset.timestamp[:19].replace("T", " ") }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox fa-3x"></i>
+                    <h3>No Datasets Found</h3>
+                    <p>
+                        {% if search_query or search_tags %}
+                        No datasets match your search criteria. Try different keywords or tags.
+                        {% else %}
+                        No datasets have been shared with the community yet. Be the first to share your dataset!
+                        {% endif %}
+                    </p>
+                    <a href="/" class="btn-primary">Create and Share Dataset</a>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+
+        <footer>
+            <p>Made with <i class="fas fa-heart"></i> for AI researchers and developers</p>
+            <p><a href="https://github.com" target="_blank"><i class="fab fa-github"></i> View on GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Add confirmation for download actions
+        document.querySelectorAll('a[href^="/download/"]').forEach(link => {
+            link.addEventListener('click', function (e) {
+                // Show download confirmation
+                const datasetName = this.closest('.community-dataset-item').querySelector('h3').textContent;
+                console.log(`Downloading dataset: ${datasetName}`);
+            });
+        });
+
+        // Handle like button responses
+        document.querySelectorAll('form[action="/like_dataset"]').forEach(form => {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                const formData = new FormData(this);
+
+                fetch('/like_dataset', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update like count or show message
+                            alert(data.message);
+                            // Reload page to show updated like count
+                            location.reload();
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while liking the dataset.');
+                    });
+            });
+        });
+    </script>
+</body>
+
+</html>
