@@ -34,6 +34,8 @@ class CommunityDatasets:
         self.client = None
         self.db = None
         self.collection = None
+        self.chat_collection = None  # For dataset-specific chat messages
+        self.global_chat_collection = None  # For global chat messages
         
         # Try to connect to MongoDB if URI is provided
         if mongodb_uri and MONGO_AVAILABLE and MongoClient:
@@ -41,6 +43,8 @@ class CommunityDatasets:
                 self.client = MongoClient(mongodb_uri)
                 self.db = self.client[database_name]
                 self.collection = self.db["community_datasets"]
+                self.chat_collection = self.db["community_chats"]  # Collection for dataset-specific chat messages
+                self.global_chat_collection = self.db["global_chats"]  # Collection for global chat messages
                 # Test connection
                 self.client.admin.command('ping')
                 self.use_mongodb = True
@@ -57,6 +61,11 @@ class CommunityDatasets:
         """Ensure community directory exists"""
         if not os.path.exists(self.community_dir):
             os.makedirs(self.community_dir)
+        # Also ensure the community datasets file exists
+        community_path = os.path.join(self.community_dir, self.community_file)
+        if not os.path.exists(community_path):
+            with open(community_path, 'w') as f:
+                json.dump([], f)
             
     def share_dataset(self, filename: str, description: str, tags: List[str], 
                      mode: str, format_type: str, entity_count: int, 
@@ -92,9 +101,33 @@ class CommunityDatasets:
                 "likes": 0
             }
             
-            # Add file_path if provided
+            # Add file_path if provided, otherwise construct it
             if file_path:
-                entry["file_path"] = file_path
+                # Normalize the file path to ensure it's in the outputs directory
+                if not os.path.isabs(file_path):
+                    # If it's a relative path, make sure it's in outputs
+                    # First normalize the path separators
+                    file_path = file_path.replace("/", os.sep).replace("\\", os.sep)
+                    
+                    # Check if it already starts with outputs/ (handle both / and \ separators)
+                    if not (file_path.startswith("outputs" + os.sep) or file_path.startswith("outputs")):
+                        entry["file_path"] = os.path.join("outputs", file_path)
+                    else:
+                        # If it already starts with outputs/, normalize it
+                        if file_path.startswith("outputs" + os.sep):
+                            # Already correctly formatted
+                            entry["file_path"] = file_path
+                        elif file_path.startswith("outputs"):
+                            # Convert to proper OS separator
+                            entry["file_path"] = "outputs" + os.sep + file_path[7:]  # Skip "outputs/"
+                        else:
+                            entry["file_path"] = os.path.join("outputs", file_path)
+                else:
+                    # If it's an absolute path, keep it as is
+                    entry["file_path"] = file_path
+            else:
+                # Construct file path based on filename
+                entry["file_path"] = os.path.join("outputs", filename)
             
             if self.use_mongodb and self.collection is not None:
                 # Use MongoDB
@@ -399,6 +432,315 @@ class CommunityDatasets:
             return False
         except Exception as e:
             print(f"Error adding like: {e}")
+            return False
+
+    def add_chat_message(self, dataset_id: str, user_name: str, message: str) -> bool:
+        """
+        Add a chat message to a dataset discussion
+        
+        Args:
+            dataset_id (str): ID of the dataset
+            user_name (str): Name of the user posting the message
+            message (str): The chat message content
+            
+        Returns:
+            bool: True if message was added successfully
+        """
+        try:
+            chat_entry = {
+                "dataset_id": dataset_id,
+                "user_name": user_name,
+                "message": message,
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+            
+            if self.use_mongodb and self.chat_collection is not None:
+                # Use MongoDB for chat messages
+                self.chat_collection.insert_one(chat_entry)
+                return True
+            else:
+                # Use file-based storage for chat messages
+                chat_file = os.path.join(self.community_dir, f"chat_{dataset_id}.json")
+                chats = []
+                if os.path.exists(chat_file):
+                    try:
+                        with open(chat_file, 'r') as f:
+                            chats = json.load(f)
+                    except (json.JSONDecodeError, FileNotFoundError):
+                        chats = []
+                
+                chats.append(chat_entry)
+                
+                with open(chat_file, 'w') as f:
+                    json.dump(chats, f, indent=2)
+                
+                return True
+        except Exception as e:
+            print(f"Error adding chat message: {e}")
+            return False
+            
+    def get_chat_messages(self, dataset_id: str) -> List[Dict]:
+        """
+        Get all chat messages for a specific dataset
+        
+        Args:
+            dataset_id (str): ID of the dataset
+            
+        Returns:
+            List[Dict]: List of chat messages
+        """
+        if self.use_mongodb and self.chat_collection is not None:
+            # Use MongoDB for chat messages
+            try:
+                messages = list(self.chat_collection.find({"dataset_id": dataset_id}))
+                # Process messages to ensure they have proper id field
+                processed_messages = []
+                for message in messages:
+                    # Convert ObjectId to string for the id field
+                    from bson import ObjectId
+                    if '_id' in message:
+                        message['id'] = str(message['_id'])
+                        del message['_id']
+                    processed_messages.append(message)
+                # Sort by timestamp (oldest first)
+                processed_messages.sort(key=lambda x: x.get('timestamp', ''))
+                return processed_messages
+            except Exception as e:
+                print(f"Error retrieving chat messages from MongoDB: {e}")
+                return []
+        else:
+            # Use file-based storage for chat messages
+            chat_file = os.path.join(self.community_dir, f"chat_{dataset_id}.json")
+            if os.path.exists(chat_file):
+                try:
+                    with open(chat_file, 'r') as f:
+                        messages = json.load(f)
+                    # Sort by timestamp (oldest first)
+                    messages.sort(key=lambda x: x.get('timestamp', ''))
+                    return messages
+                except (json.JSONDecodeError, FileNotFoundError):
+                    return []
+            return []
+
+    def add_global_chat_message(self, user_name: str, message: str) -> bool:
+        """
+        Add a message to the global chat
+        
+        Args:
+            user_name (str): Name of the user posting the message
+            message (str): The chat message content
+            
+        Returns:
+            bool: True if message was added successfully
+        """
+        try:
+            chat_entry = {
+                "user_name": user_name,
+                "message": message,
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+            
+            if self.use_mongodb and self.global_chat_collection is not None:
+                # Use MongoDB for global chat messages
+                self.global_chat_collection.insert_one(chat_entry)
+                return True
+            else:
+                # Use file-based storage for global chat messages
+                global_chat_file = os.path.join(self.community_dir, "global_chat.json")
+                chats = []
+                if os.path.exists(global_chat_file):
+                    try:
+                        with open(global_chat_file, 'r') as f:
+                            chats = json.load(f)
+                    except (json.JSONDecodeError, FileNotFoundError):
+                        chats = []
+                
+                chats.append(chat_entry)
+                
+                with open(global_chat_file, 'w') as f:
+                    json.dump(chats, f, indent=2)
+                
+                return True
+        except Exception as e:
+            print(f"Error adding global chat message: {e}")
+            return False
+            
+    def get_global_chat_messages(self, limit: int = 50) -> List[Dict]:
+        """
+        Get global chat messages
+        
+        Args:
+            limit (int): Maximum number of messages to retrieve
+            
+        Returns:
+            List[Dict]: List of global chat messages
+        """
+        if self.use_mongodb and self.global_chat_collection is not None:
+            # Use MongoDB for global chat messages
+            try:
+                # Get latest messages (sorted by timestamp, newest first)
+                messages = list(self.global_chat_collection.find({}).sort("timestamp", -1).limit(limit))
+                # Process messages to ensure they have proper id field
+                processed_messages = []
+                for message in messages:
+                    # Convert ObjectId to string for the id field
+                    from bson import ObjectId
+                    if '_id' in message:
+                        message['id'] = str(message['_id'])
+                        del message['_id']
+                    processed_messages.append(message)
+                # Sort by timestamp (oldest first for display)
+                processed_messages.sort(key=lambda x: x.get('timestamp', ''))
+                return processed_messages
+            except Exception as e:
+                print(f"Error retrieving global chat messages from MongoDB: {e}")
+                return []
+        else:
+            # Use file-based storage for global chat messages
+            global_chat_file = os.path.join(self.community_dir, "global_chat.json")
+            if os.path.exists(global_chat_file):
+                try:
+                    with open(global_chat_file, 'r') as f:
+                        messages = json.load(f)
+                    # Sort by timestamp (oldest first for display)
+                    messages.sort(key=lambda x: x.get('timestamp', ''))
+                    # Return only the latest messages if there are more than the limit
+                    if len(messages) > limit:
+                        return messages[-limit:]
+                    return messages
+                except (json.JSONDecodeError, FileNotFoundError):
+                    return []
+            return []
+
+    def delete_dataset(self, dataset_id: str, user_name: str) -> bool:
+        """
+        Delete a dataset from the community (admin only)
+        
+        Args:
+            dataset_id (str): ID of the dataset to delete
+            user_name (str): Name of the user requesting deletion
+            
+        Returns:
+            bool: True if dataset was deleted successfully
+        """
+        # Check if user is admin
+        if user_name != "admin":
+            print(f"User {user_name} is not authorized to delete datasets")
+            return False
+            
+        try:
+            if self.use_mongodb and self.collection is not None:
+                # Use MongoDB
+                from bson import ObjectId
+                # Try to delete by ObjectId first
+                if isinstance(dataset_id, str):
+                    try:
+                        result = self.collection.delete_one({"_id": ObjectId(dataset_id)})
+                        if result.deleted_count > 0:
+                            return True
+                    except Exception:
+                        pass  # Fall back to deleting by id field
+                        
+                # Delete by id field
+                result = self.collection.delete_one({"id": dataset_id})
+                return result.deleted_count > 0
+            else:
+                # Use file-based storage
+                community_datasets = self.get_community_datasets()
+                updated_datasets = [dataset for dataset in community_datasets if str(dataset['id']) != str(dataset_id)]
+                
+                if len(updated_datasets) == len(community_datasets):
+                    # No dataset was removed, meaning it wasn't found
+                    return False
+                
+                # Save updated community datasets
+                community_path = os.path.join(self.community_dir, self.community_file)
+                with open(community_path, 'w') as f:
+                    json.dump(updated_datasets, f, indent=2)
+                
+                return True
+        except Exception as e:
+            print(f"Error deleting dataset: {e}")
+            return False
+            
+    def ban_user_from_chat(self, target_user: str, admin_user: str) -> bool:
+        """
+        Ban a user from chat (admin only)
+        
+        Args:
+            target_user (str): Name of the user to ban
+            admin_user (str): Name of the admin requesting the ban
+            
+        Returns:
+            bool: True if user was banned successfully
+        """
+        # Check if user is admin
+        if admin_user != "admin":
+            print(f"User {admin_user} is not authorized to ban users")
+            return False
+            
+        try:
+            ban_entry = {
+                "banned_user": target_user,
+                "banned_by": admin_user,
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+            
+            if self.use_mongodb and self.db is not None:
+                # Use MongoDB - store bans in a separate collection
+                ban_collection = self.db["chat_bans"]
+                ban_collection.insert_one(ban_entry)
+                return True
+            else:
+                # Use file-based storage for bans
+                ban_file = os.path.join(self.community_dir, "chat_bans.json")
+                bans = []
+                if os.path.exists(ban_file):
+                    try:
+                        with open(ban_file, 'r') as f:
+                            bans = json.load(f)
+                    except (json.JSONDecodeError, FileNotFoundError):
+                        bans = []
+                
+                bans.append(ban_entry)
+                
+                with open(ban_file, 'w') as f:
+                    json.dump(bans, f, indent=2)
+                
+                return True
+        except Exception as e:
+            print(f"Error banning user: {e}")
+            return False
+            
+    def is_user_banned(self, user_name: str) -> bool:
+        """
+        Check if a user is banned from chat
+        
+        Args:
+            user_name (str): Name of the user to check
+            
+        Returns:
+            bool: True if user is banned
+        """
+        try:
+            if self.use_mongodb and self.db is not None:
+                # Use MongoDB
+                ban_collection = self.db["chat_bans"]
+                ban = ban_collection.find_one({"banned_user": user_name})
+                return ban is not None
+            else:
+                # Use file-based storage
+                ban_file = os.path.join(self.community_dir, "chat_bans.json")
+                if os.path.exists(ban_file):
+                    try:
+                        with open(ban_file, 'r') as f:
+                            bans = json.load(f)
+                        return any(ban["banned_user"] == user_name for ban in bans)
+                    except (json.JSONDecodeError, FileNotFoundError):
+                        return False
+                return False
+        except Exception as e:
+            print(f"Error checking ban status: {e}")
             return False
 
 # Global instance with MongoDB support

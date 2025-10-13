@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Chat - Text2Dataset Community</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Global Chat Styles */
+        .chat-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .chat-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .chat-messages {
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: #fff;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-message {
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+        }
+
+        .chat-message.own {
+            background: #e3f2fd;
+            border-left: 4px solid #1976d2;
+            align-self: flex-end;
+        }
+
+        .chat-user {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .chat-user.own {
+            color: #1976d2;
+        }
+
+        .chat-content {
+            margin-bottom: 5px;
+            word-wrap: break-word;
+        }
+
+        .chat-timestamp {
+            font-size: 0.8rem;
+            color: #999;
+            text-align: right;
+        }
+
+        .chat-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-form input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .chat-form button {
+            padding: 12px 20px;
+        }
+
+        .no-messages {
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .welcome-message {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            border-left: 4px solid #1976d2;
+        }
+
+        /* Admin Ban Button */
+        .btn-ban {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+            padding: 2px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+
+        .btn-ban:hover {
+            background: #ffcdd2;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-comments"></i> Text2Dataset Global Chat</h1>
+            <p>Chat with the community about datasets, features, and more</p>
+            {% if current_user %}
+            <div class="user-info">
+                <span>Welcome, {{ current_user }}!</span>
+                <a href="/logout" class="btn-small">Logout</a>
+            </div>
+            {% else %}
+            <div class="auth-links">
+                <a href="/login" class="btn-small">Login</a>
+                <a href="/signup" class="btn-small">Sign Up</a>
+            </div>
+            {% endif %}
+            <!-- Navigation Bar -->
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="/"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="/history"><i class="fas fa-history"></i> History</a></li>
+                    <li><a href="/community"><i class="fas fa-users"></i> Datasets</a></li>
+                    <li><a href="/global_chat_page" class="active"><i class="fas fa-comments"></i> Global Chat</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <div class="card chat-container">
+                <div class="chat-header">
+                    <h2><i class="fas fa-globe"></i> Community Chat</h2>
+                    <p>Discuss datasets, share ideas, and connect with other users</p>
+                </div>
+
+                {% if current_user %}
+                <div class="welcome-message">
+                    <p>Welcome to the global chat, {{ current_user }}! Feel free to share your thoughts and questions
+                        with the community.</p>
+                </div>
+                {% endif %}
+
+                <div class="chat-messages" id="chat-messages">
+                    <div class="no-messages">Loading messages...</div>
+                </div>
+
+                {% if current_user %}
+                <form class="chat-form" id="chat-form">
+                    <input type="text" id="message-input" placeholder="Type your message here..." required>
+                    <button type="submit" class="btn-primary"><i class="fas fa-paper-plane"></i> Send</button>
+                </form>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-lock fa-3x"></i>
+                    <h3>Login Required</h3>
+                    <p>You need to be logged in to participate in the chat.</p>
+                    <a href="/login" class="btn-primary">Login</a>
+                    <p>Don't have an account? <a href="/signup">Sign up here</a></p>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+
+        <footer>
+            <p>Made with <i class="fas fa-heart"></i> for AI researchers and developers</p>
+            <p><a href="https://github.com" target="_blank"><i class="fab fa-github"></i> View on GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Handle chat form submission
+        document.getElementById('chat-form')?.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            const formData = new FormData();
+            formData.append('message', message);
+
+            fetch('/global_chat', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Clear input
+                        input.value = '';
+                        // Reload chat messages
+                        loadChatMessages();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while sending the message.');
+                });
+        });
+
+        // Load chat messages
+        function loadChatMessages() {
+            fetch('/global_chat?limit=100')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const container = document.getElementById('chat-messages');
+                        if (data.messages.length > 0) {
+                            // Get current user for styling
+                            // This will be replaced by Jinja2 template engine
+                            const currentUser = "{{ current_user }}";
+
+                            container.innerHTML = data.messages.map(msg => {
+                                // For client-side, we'll determine ownership differently
+                                const isOwnMessage = false; // Will be handled differently
+                                // Check if current user is admin for ban button
+                                const currentUser = "{{ current_user }}";
+                                const isAdmin = currentUser === "admin";
+                                const banButton = isAdmin ? `<button class="btn-ban" data-user="${msg.user_name}">Ban</button>` : '';
+                                return `
+                                <div class="chat-message">
+                                    <div class="chat-user">${msg.user_name}${banButton}</div>
+                                    <div class="chat-content">${escapeHtml(msg.message)}</div>
+                                    <div class="chat-timestamp">${formatTimestamp(msg.timestamp)}</div>
+                                </div>
+                            `;
+                            }).join('');
+
+                            // Scroll to bottom
+                            container.scrollTop = container.scrollHeight;
+                        } else {
+                            container.innerHTML = '<div class="no-messages">No messages yet. Be the first to start a conversation!</div>';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading chat messages:', error);
+                    document.getElementById('chat-messages').innerHTML = '<div class="no-messages">Error loading messages. Please try again.</div>';
+                });
+        }
+
+        // Format timestamp for display
+        function formatTimestamp(timestamp) {
+            try {
+                const date = new Date(timestamp);
+                return date.toLocaleString();
+            } catch (e) {
+                return timestamp;
+            }
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+
+            return text.replace(/[&<>"']/g, function (m) { return map[m]; });
+        }
+
+        // Load chat messages when page loads
+        document.addEventListener('DOMContentLoaded', function () {
+            // Check if user is logged in by looking for the form
+            const chatForm = document.getElementById('chat-form');
+            if (chatForm) {
+                loadChatMessages();
+
+                // Refresh messages every 5 seconds
+                setInterval(loadChatMessages, 5000);
+            }
+        });
+
+        // Handle ban button responses
+        document.addEventListener('click', function (e) {
+            if (e.target.classList.contains('btn-ban')) {
+                e.preventDefault();
+
+                const targetUser = e.target.getAttribute('data-user');
+
+                if (confirm(`Are you sure you want to ban user "${targetUser}" from chat?`)) {
+                    const formData = new FormData();
+                    formData.append('target_user', targetUser);
+
+                    fetch('/admin/ban_user', {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert(data.message);
+                                // Reload chat messages
+                                loadChatMessages();
+                            } else {
+                                alert('Error: ' + data.message);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('An error occurred while banning the user.');
+                        });
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

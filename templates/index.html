@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Text2Dataset - Convert Text to Dataset</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./static/style.css">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
@@ -14,6 +14,27 @@
         <header>
             <h1><i class="fas fa-database"></i> Text2Dataset</h1>
             <p>Convert raw text into clean, labeled datasets for AI/ML projects</p>
+            {% if current_user %}
+            <div class="user-info">
+                <span>Welcome, {{ current_user }}!</span>
+                <a href="/logout" class="btn-small">Logout</a>
+            </div>
+            {% else %}
+            <div class="auth-links">
+                <a href="/login" class="btn-small">Login</a>
+                <a href="/signup" class="btn-small">Sign Up</a>
+            </div>
+            {% endif %}
+            <!-- Navigation Bar -->
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="/" class="active"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="/history"><i class="fas fa-history"></i> History</a></li>
+                    <li><a href="/community"><i class="fas fa-users"></i> Community</a></li>
+                    <li><a href="/global_chat_page"><i class="fas fa-comments"></i> Global Chat</a></li>
+                    <li><a href="#upload" id="upload-nav-link"><i class="fas fa-upload"></i> Upload</a></li>
+                </ul>
+            </nav>
         </header>
 
         <main>
@@ -83,37 +104,6 @@
                 <iframe id="download-frame" style="display:none;"></iframe>
             </div>
 
-            <!-- Recent Datasets Section -->
-            {% if recent_datasets %}
-            <div class="card">
-                <h2><i class="fas fa-clock"></i> Recent Datasets</h2>
-                <div class="recent-datasets">
-                    {% for dataset in recent_datasets %}
-                    <div class="dataset-item">
-                        <div class="dataset-info">
-                            <h4>{{ dataset.filename }}</h4>
-                            <div class="dataset-meta">
-                                <span class="badge badge-{{ dataset.mode }}">{{ dataset.mode|title }} Mode</span>
-                                <span class="badge badge-{{ dataset.format }}">{{ dataset.format|upper }} Format</span>
-                                <span class="badge badge-info">{{ dataset.entity_count }} entities</span>
-                            </div>
-                        </div>
-                        <div class="dataset-actions">
-                            <a href="/download/{{ dataset.id }}" class="btn-small">
-                                <i class="fas fa-download"></i> Download
-                            </a>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                <div class="view-all-history">
-                    <a href="/history" class="btn-secondary">
-                        <i class="fas fa-history"></i> View All History
-                    </a>
-                </div>
-            </div>
-            {% endif %}
-
             <!-- Share Dataset Section -->
             <div class="card">
                 <h2><i class="fas fa-share-alt"></i> Share with Community</h2>
@@ -124,9 +114,7 @@
                         <label for="share_dataset_id">Select Dataset to Share:</label>
                         <select id="share_dataset_id" name="dataset_id" required>
                             <option value="">-- Select a Dataset --</option>
-                            {% for dataset in recent_datasets %}
-                            <option value="{{ dataset.id }}">{{ dataset.filename }}</option>
-                            {% endfor %}
+                            <!-- We'll populate this with user's datasets via JavaScript -->
                         </select>
                     </div>
 
@@ -152,58 +140,6 @@
                 </form>
             </div>
 
-            <!-- Popular Community Datasets -->
-            {% if popular_datasets %}
-            <div class="card">
-                <h2><i class="fas fa-fire"></i> Popular Community Datasets</h2>
-                <div class="community-datasets">
-                    {% for dataset in popular_datasets %}
-                    <div class="community-dataset-item">
-                        <div class="dataset-header">
-                            <h3>{{ dataset.filename }}</h3>
-                            <div class="dataset-actions">
-                                <span class="likes">
-                                    <i class="fas fa-heart"></i> {{ dataset.likes }}
-                                </span>
-                                <a href="/download/{{ dataset.id }}" class="btn-small">
-                                    <i class="fas fa-download"></i> Download
-                                </a>
-                            </div>
-                        </div>
-
-                        <p class="dataset-description">{{ dataset.description }}</p>
-
-                        <div class="dataset-meta">
-                            <div class="meta-item">
-                                <i class="fas fa-user"></i>
-                                <span>Shared by: {{ dataset.user_name }}</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-tag"></i>
-                                <span>Tags:
-                                    {% for tag in dataset.tags %}
-                                    <span class="tag">{{ tag }}</span>
-                                    {% endfor %}
-                                </span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-cogs"></i>
-                                <span class="badge badge-{{ dataset.mode }}">{{ dataset.mode|title }} Mode</span>
-                                <span class="badge badge-{{ dataset.format }}">{{ dataset.format|upper }} Format</span>
-                                <span class="badge badge-info">{{ dataset.entity_count }} entities</span>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                <div class="view-all-history">
-                    <a href="/community" class="btn-secondary">
-                        <i class="fas fa-users"></i> View All Community Datasets
-                    </a>
-                </div>
-            </div>
-            {% endif %}
-
             <div class="features">
                 <div class="feature">
                     <i class="fas fa-bolt"></i>
@@ -222,12 +158,6 @@
                     <h3>Multiple Formats</h3>
                     <p>Export to CSV, JSON, or spaCy format for your ML workflows</p>
                 </div>
-
-                <div class="feature">
-                    <i class="fas fa-users"></i>
-                    <h3>Community</h3>
-                    <p>Share and discover datasets with other researchers</p>
-                </div>
             </div>
         </main>
 
@@ -238,6 +168,44 @@
     </div>
 
     <script>
+        // Function to scroll to upload section when nav link is clicked
+        document.getElementById('upload-nav-link').addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelector('#dataset-form').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // Function to fetch user's datasets and populate the share form
+        async function populateShareForm() {
+            try {
+                const response = await fetch('/api/user_datasets');
+                if (response.ok) {
+                    const datasets = await response.json();
+                    const select = document.getElementById('share_dataset_id');
+
+                    // Clear existing options
+                    select.innerHTML = '<option value="">-- Select a Dataset --</option>';
+
+                    // Add user's datasets
+                    datasets.forEach(dataset => {
+                        const option = document.createElement('option');
+                        option.value = dataset.id;
+                        option.textContent = dataset.filename;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching user datasets:', error);
+            }
+        }
+
+        // Populate the share form when the page loads
+        document.addEventListener('DOMContentLoaded', function () {
+            // Only populate if the share form exists
+            if (document.getElementById('share_dataset_id')) {
+                populateShareForm();
+            }
+        });
+
         document.getElementById('dataset-form').addEventListener('submit', function (e) {
             e.preventDefault(); // Prevent default form submission
 
@@ -255,21 +223,24 @@
             })
                 .then(response => {
                     if (response.ok) {
+                        // Extract filename from Content-Disposition header
+                        const contentDisposition = response.headers.get('Content-Disposition');
+                        let filename = 'dataset.csv'; // default filename
+
+                        if (contentDisposition) {
+                            // Extract filename from header like: attachment; filename="dataset_custom_123.csv"
+                            const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                            if (filenameMatch && filenameMatch[1]) {
+                                filename = filenameMatch[1];
+                            }
+                        }
+
                         // Create a blob from the response
-                        return response.blob();
+                        return response.blob().then(blob => ({ blob, filename }));
                     }
                     throw new Error('Network response was not ok.');
                 })
-                .then(blob => {
-                    // Determine filename based on output format
-                    const outputFormat = document.getElementById('output_format').value;
-                    let filename = 'dataset.csv';
-                    if (outputFormat === 'json') {
-                        filename = 'dataset.json';
-                    } else if (outputFormat === 'spacy') {
-                        filename = 'dataset_spacy.json';
-                    }
-
+                .then(({ blob, filename }) => {
                     // Create a download link
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');

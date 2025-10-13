@@ -39,6 +39,46 @@ header p {
   opacity: 0.9;
 }
 
+/* Navigation Bar */
+.main-nav {
+  margin-top: 20px;
+}
+
+.main-nav ul {
+  display: flex;
+  list-style: none;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.main-nav li {
+  margin: 0;
+}
+
+.main-nav a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 30px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.main-nav a:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.main-nav a.active {
+  background: white;
+  color: #667eea;
+}
+
 /* Card Styles */
 .card {
   background: white;
@@ -497,6 +537,11 @@ footer a:hover {
   .search-container input {
     min-width: 100%;
   }
+
+  .main-nav ul {
+    flex-direction: column;
+    align-items: center;
+  }
 }
 
 /* Animations */
@@ -513,4 +558,50 @@ footer a:hover {
 
 .card {
   animation: fadeIn 0.5s ease-out;
+}
+
+/* Authentication Links */
+.auth-links {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+.user-info {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 15px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 10px 15px;
+  border-radius: 20px;
+}
+
+.user-info span {
+  font-weight: 600;
+}
+
+/* Auth Card */
+.auth-card {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.auth-link {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.auth-link a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-link a:hover {
+  text-decoration: underline;
 }
