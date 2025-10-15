@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation - Text2Dataset</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .endpoint {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+
+        .endpoint-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .method {
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: white;
+        }
+
+        .get {
+            background: #4caf50;
+        }
+
+        .post {
+            background: #2196f3;
+        }
+
+        .endpoint-path {
+            font-family: monospace;
+            background: #e0e0e0;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .endpoint-description {
+            margin-bottom: 15px;
+        }
+
+        .endpoint-params {
+            margin-bottom: 15px;
+        }
+
+        .param {
+            margin-bottom: 10px;
+        }
+
+        .param-name {
+            font-weight: bold;
+        }
+
+        .example {
+            background: #e3f2fd;
+            border-left: 4px solid #1976d2;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+
+        .api-key-section {
+            background: #fff3e0;
+            border-left: 4px solid #ef6c00;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-code"></i> API Documentation</h1>
+            <p>Programmatic access to Text2Dataset community features</p>
+            {% if current_user %}
+            <div class="user-info">
+                <span>Welcome, {{ current_user }}!</span>
+                <a href="/logout" class="btn-small">Logout</a>
+            </div>
+            {% else %}
+            <div class="auth-links">
+                <a href="/login" class="btn-small">Login</a>
+                <a href="/signup" class="btn-small">Sign Up</a>
+            </div>
+            {% endif %}
+            <!-- Navigation Bar -->
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="/"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="/history"><i class="fas fa-history"></i> History</a></li>
+                    <li><a href="/community"><i class="fas fa-users"></i> Community</a></li>
+                    <li><a href="/global_chat_page"><i class="fas fa-comments"></i> Global Chat</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <div class="card">
+                <h2><i class="fas fa-book"></i> RESTful API Documentation</h2>
+                <p>Access community datasets programmatically using our RESTful API.</p>
+
+                <div class="api-key-section">
+                    <h3><i class="fas fa-key"></i> API Key Required</h3>
+                    <p>All API endpoints require an API key for authentication.</p>
+                    {% if current_user %}
+                    <p>Your API key: <code id="api-key">****************</code></p>
+                    <button id="generate-api-key-btn" class="btn-primary">
+                        <i class="fas fa-key"></i> Generate API Key
+                    </button>
+                    <button id="show-api-key-btn" class="btn-secondary">
+                        <i class="fas fa-eye"></i> Show API Key
+                    </button>
+                    {% else %}
+                    <p><a href="/login">Login</a> to generate and manage your API keys.</p>
+                    {% endif %}
+                </div>
+
+                <h3>API Endpoints</h3>
+
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <span class="endpoint-path">/api/datasets</span>
+                    </div>
+                    <div class="endpoint-description">
+                        <p>Get all community datasets</p>
+                    </div>
+                    <div class="endpoint-params">
+                        <div class="param">
+                            <span class="param-name">api_key</span> (query) - Your API key
+                        </div>
+                    </div>
+                    <div class="example">
+                        <p><strong>Example request:</strong></p>
+                        <code>curl "http://localhost:8006/api/datasets?api_key=YOUR_API_KEY"</code>
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <span class="endpoint-path">/api/dataset/{dataset_id}</span>
+                    </div>
+                    <div class="endpoint-description">
+                        <p>Get a specific dataset by ID</p>
+                    </div>
+                    <div class="endpoint-params">
+                        <div class="param">
+                            <span class="param-name">dataset_id</span> (path) - ID of the dataset
+                        </div>
+                        <div class="param">
+                            <span class="param-name">api_key</span> (query) - Your API key
+                        </div>
+                    </div>
+                    <div class="example">
+                        <p><strong>Example request:</strong></p>
+                        <code>curl "http://localhost:8006/api/dataset/12345?api_key=YOUR_API_KEY"</code>
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <span class="endpoint-path">/api/download/{dataset_id}</span>
+                    </div>
+                    <div class="endpoint-description">
+                        <p>Download a dataset file</p>
+                    </div>
+                    <div class="endpoint-params">
+                        <div class="param">
+                            <span class="param-name">dataset_id</span> (path) - ID of the dataset
+                        </div>
+                        <div class="param">
+                            <span class="param-name">api_key</span> (query) - Your API key
+                        </div>
+                    </div>
+                    <div class="example">
+                        <p><strong>Example request:</strong></p>
+                        <code>curl "http://localhost:8006/api/download/12345?api_key=YOUR_API_KEY" -o dataset.csv</code>
+                    </div>
+                </div>
+
+                <h3>Rate Limiting</h3>
+                <p>The API is rate-limited to prevent abuse:</p>
+                <ul>
+                    <li>100 requests per hour per API key</li>
+                    <li>Downloads are not rate-limited</li>
+                </ul>
+
+                <h3>Usage Analytics</h3>
+                <p>API usage is tracked for the following metrics:</p>
+                <ul>
+                    <li>Number of requests per endpoint</li>
+                    <li>Request frequency</li>
+                    <li>Data transfer volume</li>
+                </ul>
+            </div>
+        </main>
+
+        <footer>
+            <p>Made with <i class="fas fa-heart"></i> for AI researchers and developers</p>
+            <p><a href="https://github.com" target="_blank"><i class="fab fa-github"></i> View on GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('generate-api-key-btn')?.addEventListener('click', function () {
+            const keyName = prompt('Enter a name for your API key:');
+            if (keyName) {
+                const formData = new FormData();
+                formData.append('key_name', keyName);
+
+                fetch('/api_keys', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('API key generated successfully: ' + data.api_key);
+                            document.getElementById('api-key').textContent = data.api_key;
+                        } else {
+                            alert('Error generating API key: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while generating the API key.');
+                    });
+            }
+        });
+
+        document.getElementById('show-api-key-btn')?.addEventListener('click', function () {
+            // In a real implementation, we would fetch the API key from the server
+            alert('In a real implementation, this would show your actual API key.');
+        });
+    </script>
+</body>
+
+</html>

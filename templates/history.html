@@ -26,8 +26,12 @@
                     <li><a href="/"><i class="fas fa-home"></i> Home</a></li>
                     <li><a href="/history" class="active"><i class="fas fa-history"></i> History</a></li>
                     <li><a href="/community"><i class="fas fa-users"></i> Community</a></li>
+                    <li><a href="/collections"><i class="fas fa-folder"></i> Collections</a></li>
                     <li><a href="/global_chat_page"><i class="fas fa-comments"></i> Global Chat</a></li>
-                    <li><a href="/"><i class="fas fa-upload"></i> Upload</a></li>
+                    {% if current_user %}
+                    <li><a href="/notifications"><i class="fas fa-bell"></i> Notifications</a></li>
+                    <li><a href="/api_docs"><i class="fas fa-code"></i> API</a></li>
+                    {% endif %}
                 </ul>
             </nav>
         </header>
@@ -59,6 +63,10 @@
                             <a href="/download/{{ dataset.id }}" class="btn-primary">
                                 <i class="fas fa-download"></i> Download
                             </a>
+                            <button class="btn-delete-user-dataset" data-dataset-id="{{ dataset.id }}"
+                                title="Delete dataset">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
                         </div>
                     </div>
                     {% endfor %}
@@ -79,6 +87,37 @@
             <p><a href="https://github.com" target="_blank"><i class="fab fa-github"></i> View on GitHub</a></p>
         </footer>
     </div>
+    <script>
+        // Handle user dataset deletion
+        document.querySelectorAll('.btn-delete-user-dataset').forEach(button => {
+            button.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                const datasetId = this.getAttribute('data-dataset-id');
+                const datasetName = this.closest('.history-item').querySelector('h3').textContent;
+
+                if (confirm(`Are you sure you want to delete the dataset "${datasetName}" from your history? This action cannot be undone.`)) {
+                    fetch(`/delete_user_dataset/${datasetId}`, {
+                        method: 'POST'
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert(data.message);
+                                // Remove the dataset from the UI
+                                this.closest('.history-item').remove();
+                            } else {
+                                alert('Error: ' + data.message);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('An error occurred while deleting the dataset.');
+                        });
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

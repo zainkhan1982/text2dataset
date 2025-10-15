@@ -124,8 +124,11 @@
                     <li><a href="/"><i class="fas fa-home"></i> Home</a></li>
                     <li><a href="/history"><i class="fas fa-history"></i> History</a></li>
                     <li><a href="/community" class="active"><i class="fas fa-users"></i> Community</a></li>
+                    <li><a href="/collections"><i class="fas fa-folder"></i> Collections</a></li>
                     <li><a href="/global_chat_page"><i class="fas fa-comments"></i> Global Chat</a></li>
-                    <li><a href="/"><i class="fas fa-upload"></i> Upload</a></li>
+                    {% if current_user %}
+                    <li><a href="/notifications"><i class="fas fa-bell"></i> Notifications</a></li>
+                    {% endif %}
                 </ul>
             </nav>
         </header>
@@ -160,21 +163,25 @@
                         <div class="dataset-header">
                             <h3>{{ dataset.filename }}</h3>
                             <div class="dataset-actions">
-                                {% if current_user == "admin" %}
+                                {% if current_user == "admin" or dataset.user_name == current_user %}
                                 <button class="btn-delete" data-dataset-id="{{ dataset.id }}" title="Delete dataset">
                                     <i class="fas fa-trash"></i> Delete
                                 </button>
                                 {% endif %}
+                                <a href="/dataset/{{ dataset.id }}/versions" class="btn-secondary"
+                                    title="View versions">
+                                    <i class="fas fa-code-branch"></i> Versions
+                                </a>
                                 <form method="POST" action="/like_dataset" style="display: inline;">
                                     <input type="hidden" name="dataset_id" value="{{ dataset.id }}">
                                     <button type="submit" class="btn-like" title="Like this dataset">
                                         <i class="fas fa-heart"></i> {{ dataset.likes }}
                                     </button>
                                 </form>
-                                <a href="/view/{{ dataset.id }}" class="btn-secondary" target="_blank">
+                                <a href="/view_community/{{ dataset.id }}" class="btn-secondary" target="_blank">
                                     <i class="fas fa-eye"></i> View
                                 </a>
-                                <a href="/download/{{ dataset.id }}" class="btn-primary">
+                                <a href="/download_community/{{ dataset.id }}" class="btn-primary">
                                     <i class="fas fa-download"></i> Download
                                 </a>
                             </div>
@@ -274,6 +281,12 @@
                 e.preventDefault();
 
                 const formData = new FormData(this);
+                const button = this.querySelector('button');
+                const originalText = button.innerHTML;
+
+                // Show loading state
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                button.disabled = true;
 
                 fetch('/like_dataset', {
                     method: 'POST',
@@ -287,12 +300,18 @@
                             // Reload page to show updated like count
                             location.reload();
                         } else {
-                            alert('Error: ' + data.message);
+                            alert(data.message);
+                            // Reset button
+                            button.innerHTML = originalText;
+                            button.disabled = false;
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
                         alert('An error occurred while liking the dataset.');
+                        // Reset button
+                        button.innerHTML = originalText;
+                        button.disabled = false;
                     });
             });
         });
@@ -328,47 +347,12 @@
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        alert('An error occurred while sending the message.');
+                        alert('An error occurred while posting the message.');
                     });
             });
         });
 
-        // Load chat messages for each dataset
-        function loadChatMessages(datasetId) {
-            fetch(`/chat/${datasetId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const container = document.getElementById(`chat-messages-${datasetId}`);
-                        if (data.messages.length > 0) {
-                            container.innerHTML = data.messages.map(msg => `
-                            <div class="chat-message">
-                                <div class="chat-user">${msg.user_name}</div>
-                                <div class="chat-content">${msg.message}</div>
-                                <div class="chat-timestamp">${formatTimestamp(msg.timestamp)}</div>
-                            </div>
-                        `).join('');
-                        } else {
-                            container.innerHTML = '<div class="no-messages">No messages yet. Be the first to comment!</div>';
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading chat messages:', error);
-                });
-        }
-
-        // Format timestamp for display
-        function formatTimestamp(timestamp) {
-            try {
-                const date = new Date(timestamp);
-                return date.toLocaleString();
-            } catch (e) {
-                return timestamp;
-            }
-        }
-
-        // Handle delete button responses
+        // Handle dataset deletion for owners and admin
         document.querySelectorAll('.btn-delete').forEach(button => {
             button.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -376,8 +360,8 @@
                 const datasetId = this.getAttribute('data-dataset-id');
                 const datasetName = this.closest('.community-dataset-item').querySelector('h3').textContent;
 
-                if (confirm(`Are you sure you want to delete the dataset "${datasetName}"? This action cannot be undone.`)) {
-                    fetch(`/admin/delete_dataset/${datasetId}`, {
+                if (confirm(`Are you sure you want to delete the dataset "${datasetName}" from the community? This action cannot be undone.`)) {
+                    fetch(`/delete_community_dataset/${datasetId}`, {
                         method: 'POST'
                     })
                         .then(response => response.json())

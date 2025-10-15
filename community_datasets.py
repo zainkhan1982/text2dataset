@@ -5,21 +5,31 @@ Community Datasets Module - Allow users to share and discover datasets
 import os
 import json
 import datetime
+import uuid
 from typing import List, Dict, Optional
 from pathlib import Path
+import io
+
+# For MongoDB ObjectId handling
+try:
+    from bson import ObjectId
+except ImportError:
+    ObjectId = None
 
 # Load environment variables
 from dotenv import load_dotenv
 load_dotenv()
 
-# Try to import pymongo for MongoDB support
+# Try to import pymongo and gridfs for MongoDB support
 try:
     from pymongo import MongoClient
+    from gridfs import GridFS
     MONGO_AVAILABLE = True
 except ImportError:
     MONGO_AVAILABLE = False
-    print("pymongo not installed. Install with: pip install pymongo")
+    print("pymongo/gridfs not installed. Install with: pip install pymongo")
     MongoClient = None
+    GridFS = None
 
 class CommunityDatasets:
     """Manage community-shared datasets"""
@@ -36,6 +46,12 @@ class CommunityDatasets:
         self.collection = None
         self.chat_collection = None  # For dataset-specific chat messages
         self.global_chat_collection = None  # For global chat messages
+        self.dataset_versions_collection = None  # For dataset versioning
+        self.dataset_collections_collection = None  # For dataset collections
+        self.notifications_collection = None  # For notifications
+        self.api_keys_collection = None  # For API key management
+        self.gridfs = None  # For GridFS file storage
+        self.use_mongodb = False
         
         # Try to connect to MongoDB if URI is provided
         if mongodb_uri and MONGO_AVAILABLE and MongoClient:
@@ -45,6 +61,11 @@ class CommunityDatasets:
                 self.collection = self.db["community_datasets"]
                 self.chat_collection = self.db["community_chats"]  # Collection for dataset-specific chat messages
                 self.global_chat_collection = self.db["global_chats"]  # Collection for global chat messages
+                self.dataset_versions_collection = self.db["dataset_versions"]  # Collection for dataset versioning
+                self.dataset_collections_collection = self.db["dataset_collections"]  # Collection for dataset collections
+                self.notifications_collection = self.db["notifications"]  # Collection for notifications
+                self.api_keys_collection = self.db["api_keys"]  # Collection for API key management
+                self.gridfs = GridFS(self.db) if GridFS else None
                 # Test connection
                 self.client.admin.command('ping')
                 self.use_mongodb = True
@@ -69,7 +90,7 @@ class CommunityDatasets:
             
     def share_dataset(self, filename: str, description: str, tags: List[str], 
                      mode: str, format_type: str, entity_count: int, 
-                     user_name: str = "Anonymous", file_path: Optional[str] = None) -> bool:
+                     user_name: str = "Anonymous", file_content: Optional[bytes] = None) -> bool:
         """
         Share a dataset with the community
         
@@ -81,7 +102,7 @@ class CommunityDatasets:
             format_type (str): Output format (csv/json/spacy)
             entity_count (int): Number of entities in the dataset
             user_name (str): Name of the user sharing the dataset
-            file_path (str, optional): Path to the dataset file
+            file_content (bytes): Content of the file to store in GridFS
             
         Returns:
             bool: True if shared successfully
@@ -101,41 +122,25 @@ class CommunityDatasets:
                 "likes": 0
             }
             
-            # Add file_path if provided, otherwise construct it
-            if file_path:
-                # Normalize the file path to ensure it's in the outputs directory
-                if not os.path.isabs(file_path):
-                    # If it's a relative path, make sure it's in outputs
-                    # First normalize the path separators
-                    file_path = file_path.replace("/", os.sep).replace("\\", os.sep)
-                    
-                    # Check if it already starts with outputs/ (handle both / and \ separators)
-                    if not (file_path.startswith("outputs" + os.sep) or file_path.startswith("outputs")):
-                        entry["file_path"] = os.path.join("outputs", file_path)
-                    else:
-                        # If it already starts with outputs/, normalize it
-                        if file_path.startswith("outputs" + os.sep):
-                            # Already correctly formatted
-                            entry["file_path"] = file_path
-                        elif file_path.startswith("outputs"):
-                            # Convert to proper OS separator
-                            entry["file_path"] = "outputs" + os.sep + file_path[7:]  # Skip "outputs/"
-                        else:
-                            entry["file_path"] = os.path.join("outputs", file_path)
-                else:
-                    # If it's an absolute path, keep it as is
-                    entry["file_path"] = file_path
-            else:
-                # Construct file path based on filename
-                entry["file_path"] = os.path.join("outputs", filename)
-            
-            if self.use_mongodb and self.collection is not None:
-                # Use MongoDB
+            if self.use_mongodb and self.collection is not None and self.gridfs is not None:
+                # Use MongoDB with GridFS
+                if file_content:
+                    # Store file in GridFS and save the file ID in the entry
+                    file_id = self.gridfs.put(file_content, filename=filename)
+                    entry["file_id"] = str(file_id)
                 result = self.collection.insert_one(entry)
                 entry["id"] = str(result.inserted_id)
             else:
                 # Use file-based storage
                 entry["id"] = self.generate_id()
+                
+                # Save file to outputs directory
+                if file_content:
+                    file_path = os.path.join("outputs", filename)
+                    os.makedirs("outputs", exist_ok=True)
+                    with open(file_path, "wb") as f:
+                        f.write(file_content)
+                    entry["file_path"] = file_path
                 
                 # Load existing community datasets
                 community_datasets = self.get_community_datasets()
@@ -183,8 +188,7 @@ class CommunityDatasets:
                 processed_datasets = []
                 for dataset in datasets:
                     # Convert ObjectId to string for the id field
-                    from bson import ObjectId
-                    if '_id' in dataset:
+                    if '_id' in dataset and ObjectId is not None:
                         dataset['id'] = str(dataset['_id'])
                         del dataset['_id']
                     processed_datasets.append(dataset)
@@ -213,10 +217,9 @@ class CommunityDatasets:
         Returns:
             Dict: Dataset entry or empty dict if not found
         """
-        if self.use_mongodb and self.collection is not None:
+        if self.use_mongodb and self.collection is not None and ObjectId is not None:
             # Use MongoDB
             try:
-                from bson import ObjectId
                 # Try to find by ObjectId if dataset_id is a string
                 if isinstance(dataset_id, str):
                     try:
@@ -266,6 +269,44 @@ class CommunityDatasets:
                 except (KeyError, ValueError):
                     continue
             return {}
+        
+    def get_file_content(self, dataset: Dict) -> Optional[bytes]:
+        """
+        Get the file content for a dataset
+        
+        Args:
+            dataset (Dict): Dataset entry
+            
+        Returns:
+            bytes: File content or None if not found
+        """
+        if self.use_mongodb and self.gridfs is not None and ObjectId is not None:
+            # Use MongoDB GridFS
+            try:
+                if "file_id" in dataset:
+                    file_id = dataset["file_id"]
+                    # Try to get file by ObjectId
+                    try:
+                        return self.gridfs.get(ObjectId(file_id)).read()
+                    except Exception:
+                        # If ObjectId conversion fails, return None
+                        return None
+                else:
+                    # Try to find file by filename
+                    grid_out = self.gridfs.find_one({"filename": dataset["filename"]})
+                    if grid_out:
+                        return grid_out.read()
+                    return None
+            except Exception as e:
+                print(f"Error retrieving file from GridFS: {e}")
+                return None
+        else:
+            # Use file-based storage
+            file_path = dataset.get("file_path")
+            if file_path and os.path.exists(file_path):
+                with open(file_path, "rb") as f:
+                    return f.read()
+            return None
         
     def search_datasets(self, query: str = "", tags: Optional[List[str]] = None) -> List[Dict]:
         """
@@ -332,106 +373,123 @@ class CommunityDatasets:
         Returns:
             bool: True if incremented successfully
         """
-        try:
-            if self.use_mongodb and self.collection is not None:
-                # Use MongoDB
-                from bson import ObjectId
-                # Try to update by ObjectId first
-                if isinstance(dataset_id, str):
-                    try:
-                        result = self.collection.update_one(
-                            {"_id": ObjectId(dataset_id)}, 
-                            {"$inc": {"download_count": 1}}
-                        )
-                        if result.modified_count > 0:
-                            return True
-                    except Exception:
-                        pass  # Fall back to updating by id field
+        if self.use_mongodb and self.collection is not None and ObjectId is not None:
+            # Use MongoDB
+            # Try to update by ObjectId first
+            if isinstance(dataset_id, str):
+                try:
+                    result = self.collection.update_one(
+                        {"_id": ObjectId(dataset_id)}, 
+                        {"$inc": {"download_count": 1}}
+                    )
+                    if result.modified_count > 0:
+                        return True
+                except Exception:
+                    pass  # Fall back to updating by id field
                         
-                # Update by id field
-                result = self.collection.update_one(
-                    {"id": dataset_id}, 
-                    {"$inc": {"download_count": 1}}
-                )
-                return result.modified_count > 0
-            else:
-                # Use file-based storage
-                community_datasets = self.get_community_datasets()
-                updated = False
-                for dataset in community_datasets:
-                    try:
-                        if str(dataset['id']) == str(dataset_id):
-                            dataset['download_count'] = dataset.get('download_count', 0) + 1
-                            updated = True
-                            break
-                    except (KeyError, ValueError):
-                        continue
+            # Update by id field
+            result = self.collection.update_one(
+                {"id": dataset_id}, 
+                {"$inc": {"download_count": 1}}
+            )
+            return result.modified_count > 0
+        else:
+            # Use file-based storage
+            community_datasets = self.get_community_datasets()
+            updated = False
+            for dataset in community_datasets:
+                try:
+                    if str(dataset['id']) == str(dataset_id):
+                        dataset['download_count'] = dataset.get('download_count', 0) + 1
+                        updated = True
+                        break
+                except (KeyError, ValueError):
+                    continue
+                    
+            if updated:
+                # Save updated community datasets
+                community_path = os.path.join(self.community_dir, self.community_file)
+                with open(community_path, 'w') as f:
+                    json.dump(community_datasets, f, indent=2)
                         
-                if updated:
-                    # Save updated community datasets
-                    community_path = os.path.join(self.community_dir, self.community_file)
-                    with open(community_path, 'w') as f:
-                        json.dump(community_datasets, f, indent=2)
-                    return True
+                return True
             return False
-        except Exception as e:
-            print(f"Error incrementing download count: {e}")
-            return False
-            
-    def add_like(self, dataset_id) -> bool:
+        
+    def add_like(self, dataset_id, user_name = None) -> bool:
         """
         Add a like to a dataset
         
         Args:
             dataset_id: Dataset ID
+            user_name: Name of the user liking the dataset (optional)
             
         Returns:
             bool: True if liked successfully
         """
-        try:
-            if self.use_mongodb and self.collection is not None:
-                # Use MongoDB
-                from bson import ObjectId
-                # Try to update by ObjectId first
-                if isinstance(dataset_id, str):
-                    try:
-                        result = self.collection.update_one(
-                            {"_id": ObjectId(dataset_id)}, 
-                            {"$inc": {"likes": 1}}
-                        )
-                        if result.modified_count > 0:
-                            return True
-                    except Exception:
-                        pass  # Fall back to updating by id field
+        # If user_name is provided, check if user has already liked this dataset
+        if user_name and self.use_mongodb and self.db is not None:
+            try:
+                # Check if user has already liked this dataset
+                likes_collection = self.db["dataset_likes"]
+                existing_like = likes_collection.find_one({
+                    "dataset_id": dataset_id,
+                    "user_name": user_name
+                })
+                
+                if existing_like:
+                    # User has already liked this dataset
+                    return False
+                    
+                # Record the like
+                likes_collection.insert_one({
+                    "dataset_id": dataset_id,
+                    "user_name": user_name,
+                    "timestamp": datetime.datetime.now().isoformat()
+                })
+            except Exception as e:
+                print(f"Error recording like: {e}")
+                # Continue with the like process even if we can't record the user
+        
+        if self.use_mongodb and self.collection is not None and ObjectId is not None:
+            # Use MongoDB
+            # Try to update by ObjectId first
+            if isinstance(dataset_id, str):
+                try:
+                    result = self.collection.update_one(
+                        {"_id": ObjectId(dataset_id)}, 
+                        {"$inc": {"likes": 1}}
+                    )
+                    if result.modified_count > 0:
+                        return True
+                except Exception:
+                    pass  # Fall back to updating by id field
                         
-                # Update by id field
-                result = self.collection.update_one(
-                    {"id": dataset_id}, 
-                    {"$inc": {"likes": 1}}
-                )
-                return result.modified_count > 0
-            else:
-                # Use file-based storage
-                community_datasets = self.get_community_datasets()
-                updated = False
-                for dataset in community_datasets:
-                    try:
-                        if str(dataset['id']) == str(dataset_id):
-                            dataset['likes'] = dataset.get('likes', 0) + 1
-                            updated = True
-                            break
-                    except (KeyError, ValueError):
-                        continue
+            # Update by id field
+            result = self.collection.update_one(
+                {"id": dataset_id}, 
+                {"$inc": {"likes": 1}}
+            )
+            return result.modified_count > 0
+        else:
+            # Use file-based storage
+            community_datasets = self.get_community_datasets()
+            updated = False
+            for dataset in community_datasets:
+                try:
+                    if str(dataset['id']) == str(dataset_id):
+                        dataset['likes'] = dataset.get('likes', 0) + 1
+                        updated = True
+                        break
+                except (KeyError, ValueError):
+                    continue
+                    
+            if updated:
+                # Save updated community datasets
+                community_path = os.path.join(self.community_dir, self.community_file)
+                with open(community_path, 'w') as f:
+                    json.dump(community_datasets, f, indent=2)
                         
-                if updated:
-                    # Save updated community datasets
-                    community_path = os.path.join(self.community_dir, self.community_file)
-                    with open(community_path, 'w') as f:
-                        json.dump(community_datasets, f, indent=2)
-                    return True
-            return False
-        except Exception as e:
-            print(f"Error adding like: {e}")
+                return True
             return False
 
     def add_chat_message(self, dataset_id: str, user_name: str, message: str) -> bool:
@@ -497,8 +555,7 @@ class CommunityDatasets:
                 processed_messages = []
                 for message in messages:
                     # Convert ObjectId to string for the id field
-                    from bson import ObjectId
-                    if '_id' in message:
+                    if '_id' in message and ObjectId is not None:
                         message['id'] = str(message['_id'])
                         del message['_id']
                     processed_messages.append(message)
@@ -584,8 +641,7 @@ class CommunityDatasets:
                 processed_messages = []
                 for message in messages:
                     # Convert ObjectId to string for the id field
-                    from bson import ObjectId
-                    if '_id' in message:
+                    if '_id' in message and ObjectId is not None:
                         message['id'] = str(message['_id'])
                         del message['_id']
                     processed_messages.append(message)
@@ -614,7 +670,7 @@ class CommunityDatasets:
 
     def delete_dataset(self, dataset_id: str, user_name: str) -> bool:
         """
-        Delete a dataset from the community (admin only)
+        Delete a dataset from the community (owners and admin only)
         
         Args:
             dataset_id (str): ID of the dataset to delete
@@ -623,15 +679,22 @@ class CommunityDatasets:
         Returns:
             bool: True if dataset was deleted successfully
         """
-        # Check if user is admin
-        if user_name != "admin":
-            print(f"User {user_name} is not authorized to delete datasets")
+        # Check if user is admin or the owner of the dataset
+        dataset = self.get_dataset_by_id(dataset_id)
+        if not dataset:
+            print(f"Dataset {dataset_id} not found")
+            return False
+            
+        is_owner = dataset.get("user_name") == user_name
+        is_admin = user_name == "admin"
+        
+        if not is_owner and not is_admin:
+            print(f"User {user_name} is not authorized to delete dataset {dataset_id}")
             return False
             
         try:
-            if self.use_mongodb and self.collection is not None:
+            if self.use_mongodb and self.collection is not None and ObjectId is not None:
                 # Use MongoDB
-                from bson import ObjectId
                 # Try to delete by ObjectId first
                 if isinstance(dataset_id, str):
                     try:
@@ -743,48 +806,543 @@ class CommunityDatasets:
             print(f"Error checking ban status: {e}")
             return False
 
-# Global instance with MongoDB support
+    def create_dataset_version(self, dataset_id: str, version_notes: str, user_name: str) -> bool:
+        """
+        Create a new version of a dataset
+        
+        Args:
+            dataset_id (str): ID of the original dataset
+            version_notes (str): Notes about changes in this version
+            user_name (str): Name of the user creating the version
+            
+        Returns:
+            bool: True if version was created successfully
+        """
+        try:
+            # Get the original dataset
+            original_dataset = self.get_dataset_by_id(dataset_id)
+            if not original_dataset:
+                return False
+                
+            # Create version entry
+            version_entry = {
+                "dataset_id": dataset_id,
+                "version": self._get_next_version_number(dataset_id),
+                "original_dataset": original_dataset,
+                "version_notes": version_notes,
+                "created_by": user_name,
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+            
+            if self.use_mongodb and self.dataset_versions_collection is not None:
+                # Use MongoDB for version storage
+                self.dataset_versions_collection.insert_one(version_entry)
+                return True
+            else:
+                # Use file-based storage for versions
+                versions_file = os.path.join(self.community_dir, f"versions_{dataset_id}.json")
+                versions = []
+                if os.path.exists(versions_file):
+                    try:
+                        with open(versions_file, 'r') as f:
+                            versions = json.load(f)
+                    except (json.JSONDecodeError, FileNotFoundError):
+                        versions = []
+                
+                versions.append(version_entry)
+                
+                with open(versions_file, 'w') as f:
+                    json.dump(versions, f, indent=2)
+                
+                return True
+        except Exception as e:
+            print(f"Error creating dataset version: {e}")
+            return False
+            
+    def _get_next_version_number(self, dataset_id: str) -> int:
+        """
+        Get the next version number for a dataset
+        
+        Args:
+            dataset_id (str): ID of the dataset
+            
+        Returns:
+            int: Next version number
+        """
+        try:
+            if self.use_mongodb and self.dataset_versions_collection is not None:
+                # Use MongoDB
+                versions = list(self.dataset_versions_collection.find({"dataset_id": dataset_id}))
+                return len(versions) + 1
+            else:
+                # Use file-based storage
+                versions_file = os.path.join(self.community_dir, f"versions_{dataset_id}.json")
+                if os.path.exists(versions_file):
+                    try:
+                        with open(versions_file, 'r') as f:
+                            versions = json.load(f)
+                        return len(versions) + 1
+                    except (json.JSONDecodeError, FileNotFoundError):
+                        return 1
+                return 1
+        except Exception:
+            return 1
+            
+    def get_dataset_versions(self, dataset_id: str) -> List[Dict]:
+        """
+        Get all versions of a dataset
+        
+        Args:
+            dataset_id (str): ID of the dataset
+            
+        Returns:
+            List[Dict]: List of dataset versions
+        """
+        if self.use_mongodb and self.dataset_versions_collection is not None:
+            # Use MongoDB
+            try:
+                versions = list(self.dataset_versions_collection.find({"dataset_id": dataset_id}))
+                # Process versions to ensure they have proper id field
+                processed_versions = []
+                for version in versions:
+                    # Convert ObjectId to string for the id field
+                    if '_id' in version and ObjectId is not None:
+                        version['id'] = str(version['_id'])
+                        del version['_id']
+                    processed_versions.append(version)
+                return processed_versions
+            except Exception as e:
+                print(f"Error retrieving dataset versions from MongoDB: {e}")
+                return []
+        else:
+            # Use file-based storage
+            versions_file = os.path.join(self.community_dir, f"versions_{dataset_id}.json")
+            if os.path.exists(versions_file):
+                try:
+                    with open(versions_file, 'r') as f:
+                        return json.load(f)
+                except (json.JSONDecodeError, FileNotFoundError):
+                    return []
+            return []
+            
+    def create_dataset_collection(self, name: str, description: str, is_public: bool, 
+                                 dataset_ids: List[str], user_name: str) -> bool:
+        """
+        Create a collection of datasets
+        
+        Args:
+            name (str): Name of the collection
+            description (str): Description of the collection
+            is_public (bool): Whether the collection is public
+            dataset_ids (List[str]): List of dataset IDs in the collection
+            user_name (str): Name of the user creating the collection
+            
+        Returns:
+            bool: True if collection was created successfully
+        """
+        try:
+            collection_entry = {
+                "name": name,
+                "description": description,
+                "is_public": is_public,
+                "dataset_ids": dataset_ids,
+                "created_by": user_name,
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+            
+            if self.use_mongodb and self.dataset_collections_collection is not None:
+                # Use MongoDB for collection storage
+                result = self.dataset_collections_collection.insert_one(collection_entry)
+                collection_entry["id"] = str(result.inserted_id)
+            else:
+                # Use file-based storage for collections
+                collection_entry["id"] = self._generate_collection_id()
+                collections_file = os.path.join(self.community_dir, "dataset_collections.json")
+                collections = []
+                if os.path.exists(collections_file):
+                    try:
+                        with open(collections_file, 'r') as f:
+                            collections = json.load(f)
+                    except (json.JSONDecodeError, FileNotFoundError):
+                        collections = []
+                
+                collections.append(collection_entry)
+                
+                with open(collections_file, 'w') as f:
+                    json.dump(collections, f, indent=2)
+                
+            return True
+        except Exception as e:
+            print(f"Error creating dataset collection: {e}")
+            return False
+            
+    def _generate_collection_id(self) -> str:
+        """
+        Generate a unique ID for a dataset collection
+        
+        Returns:
+            str: Unique collection ID
+        """
+        return str(uuid.uuid4())
+        
+    def get_user_collections(self, user_name: str) -> List[Dict]:
+        """
+        Get all collections created by a user
+        
+        Args:
+            user_name (str): Name of the user
+            
+        Returns:
+            List[Dict]: List of user's collections
+        """
+        if self.use_mongodb and self.dataset_collections_collection is not None:
+            # Use MongoDB
+            try:
+                collections = list(self.dataset_collections_collection.find({"created_by": user_name}))
+                # Process collections to ensure they have proper id field
+                processed_collections = []
+                for collection in collections:
+                    # Convert ObjectId to string for the id field
+                    if '_id' in collection and ObjectId is not None:
+                        collection['id'] = str(collection['_id'])
+                        del collection['_id']
+                    processed_collections.append(collection)
+                return processed_collections
+            except Exception as e:
+                print(f"Error retrieving user collections from MongoDB: {e}")
+                return []
+        else:
+            # Use file-based storage
+            collections_file = os.path.join(self.community_dir, "dataset_collections.json")
+            if os.path.exists(collections_file):
+                try:
+                    with open(collections_file, 'r') as f:
+                        collections = json.load(f)
+                    # Filter by user name
+                    user_collections = [c for c in collections if c.get("created_by") == user_name]
+                    return user_collections
+                except (json.JSONDecodeError, FileNotFoundError):
+                    return []
+            return []
+
+    def get_public_collections(self) -> List[Dict]:
+        """
+        Get all public collections
+        
+        Returns:
+            List[Dict]: List of public collections
+        """
+        if self.use_mongodb and self.dataset_collections_collection is not None:
+            # Use MongoDB
+            try:
+                collections = list(self.dataset_collections_collection.find({"is_public": True}))
+                # Process collections to ensure they have proper id field
+                processed_collections = []
+                for collection in collections:
+                    # Convert ObjectId to string for the id field
+                    if '_id' in collection and ObjectId is not None:
+                        collection['id'] = str(collection['_id'])
+                        del collection['_id']
+                    processed_collections.append(collection)
+                return processed_collections
+            except Exception as e:
+                print(f"Error retrieving public collections from MongoDB: {e}")
+                return []
+        else:
+            # Use file-based storage
+            collections_file = os.path.join(self.community_dir, "dataset_collections.json")
+            if os.path.exists(collections_file):
+                try:
+                    with open(collections_file, 'r') as f:
+                        collections = json.load(f)
+                    # Filter by public status
+                    public_collections = [c for c in collections if c.get("is_public", False)]
+                    return public_collections
+                except (json.JSONDecodeError, FileNotFoundError):
+                    return []
+            return []
+
+    def add_notification(self, user_name: str, message: str, notification_type: str) -> bool:
+        """
+        Add a notification for a user
+        
+        Args:
+            user_name (str): Name of the user
+            message (str): Notification message
+            notification_type (str): Type of notification
+            
+        Returns:
+            bool: True if notification was added successfully
+        """
+        try:
+            notification_entry = {
+                "user_name": user_name,
+                "message": message,
+                "type": notification_type,
+                "timestamp": datetime.datetime.now().isoformat(),
+                "read": False
+            }
+            
+            if self.use_mongodb and self.notifications_collection is not None:
+                # Use MongoDB for notifications
+                result = self.notifications_collection.insert_one(notification_entry)
+                notification_entry["id"] = str(result.inserted_id)
+                return True
+            else:
+                # Use file-based storage for notifications
+                notifications_file = os.path.join(self.community_dir, f"notifications_{user_name}.json")
+                notifications = []
+                if os.path.exists(notifications_file):
+                    try:
+                        with open(notifications_file, 'r') as f:
+                            notifications = json.load(f)
+                    except (json.JSONDecodeError, FileNotFoundError):
+                        notifications = []
+                
+                # Generate a simple ID
+                notification_entry["id"] = len(notifications) + 1
+                notifications.append(notification_entry)
+                
+                with open(notifications_file, 'w') as f:
+                    json.dump(notifications, f, indent=2)
+                
+                return True
+        except Exception as e:
+            print(f"Error adding notification: {e}")
+            return False
+
+    def get_user_notifications(self, user_name: str) -> List[Dict]:
+        """
+        Get all notifications for a user
+        
+        Args:
+            user_name (str): Name of the user
+            
+        Returns:
+            List[Dict]: List of user notifications
+        """
+        if self.use_mongodb and self.notifications_collection is not None:
+            # Use MongoDB
+            try:
+                notifications = list(self.notifications_collection.find({"user_name": user_name}))
+                # Process notifications to ensure they have proper id field
+                processed_notifications = []
+                for notification in notifications:
+                    # Convert ObjectId to string for the id field
+                    if '_id' in notification and ObjectId is not None:
+                        notification['id'] = str(notification['_id'])
+                        del notification['_id']
+                    processed_notifications.append(notification)
+                # Sort by timestamp (newest first)
+                processed_notifications.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+                return processed_notifications
+            except Exception as e:
+                print(f"Error retrieving user notifications from MongoDB: {e}")
+                return []
+        else:
+            # Use file-based storage
+            notifications_file = os.path.join(self.community_dir, f"notifications_{user_name}.json")
+            if os.path.exists(notifications_file):
+                try:
+                    with open(notifications_file, 'r') as f:
+                        notifications = json.load(f)
+                    # Sort by timestamp (newest first)
+                    notifications.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+                    return notifications
+                except (json.JSONDecodeError, FileNotFoundError):
+                    return []
+            return []
+
+    def mark_notification_as_read(self, user_name: str, notification_id: str) -> bool:
+        """
+        Mark a notification as read
+        
+        Args:
+            user_name (str): Name of the user
+            notification_id (str): ID of the notification
+            
+        Returns:
+            bool: True if notification was marked as read successfully
+        """
+        if self.use_mongodb and self.notifications_collection is not None and ObjectId is not None:
+            # Use MongoDB
+            try:
+                # Try to update by ObjectId first
+                if isinstance(notification_id, str):
+                    try:
+                        result = self.notifications_collection.update_one(
+                            {"_id": ObjectId(notification_id), "user_name": user_name}, 
+                            {"$set": {"read": True}}
+                        )
+                        if result.modified_count > 0:
+                            return True
+                    except Exception:
+                        pass  # Fall back to updating by id field
+                        
+                # Update by id field
+                result = self.notifications_collection.update_one(
+                    {"id": notification_id, "user_name": user_name}, 
+                    {"$set": {"read": True}}
+                )
+                return result.modified_count > 0
+            except Exception as e:
+                print(f"Error marking notification as read in MongoDB: {e}")
+                return False
+        else:
+            # Use file-based storage
+            notifications_file = os.path.join(self.community_dir, f"notifications_{user_name}.json")
+            if os.path.exists(notifications_file):
+                try:
+                    with open(notifications_file, 'r') as f:
+                        notifications = json.load(f)
+                    
+                    updated = False
+                    for notification in notifications:
+                        if str(notification.get('id')) == str(notification_id):
+                            notification['read'] = True
+                            updated = True
+                            break
+                    
+                    if updated:
+                        with open(notifications_file, 'w') as f:
+                            json.dump(notifications, f, indent=2)
+                        return True
+                except (json.JSONDecodeError, FileNotFoundError):
+                    pass
+            return False
+
+    def create_api_key(self, user_name: str, key_name: str) -> str:
+        """
+        Create an API key for a user
+        
+        Args:
+            user_name (str): Name of the user
+            key_name (str): Name for the API key
+            
+        Returns:
+            str: Generated API key or empty string if failed
+        """
+        try:
+            # Generate a unique API key
+            import secrets
+            api_key = secrets.token_urlsafe(32)
+            
+            key_entry = {
+                "user_name": user_name,
+                "key_name": key_name,
+                "api_key": api_key,
+                "created_at": datetime.datetime.now().isoformat(),
+                "last_used": None
+            }
+            
+            if self.use_mongodb and self.api_keys_collection is not None:
+                # Use MongoDB for API keys
+                self.api_keys_collection.insert_one(key_entry)
+                return api_key
+            else:
+                # Use file-based storage for API keys
+                api_keys_file = os.path.join(self.community_dir, f"api_keys_{user_name}.json")
+                api_keys = []
+                if os.path.exists(api_keys_file):
+                    try:
+                        with open(api_keys_file, 'r') as f:
+                            api_keys = json.load(f)
+                    except (json.JSONDecodeError, FileNotFoundError):
+                        api_keys = []
+                
+                api_keys.append(key_entry)
+                
+                with open(api_keys_file, 'w') as f:
+                    json.dump(api_keys, f, indent=2)
+                
+                return api_key
+        except Exception as e:
+            print(f"Error creating API key: {e}")
+            return ""
+
+    def validate_api_key(self, api_key: str) -> str:
+        """
+        Validate an API key and return the associated user name
+        
+        Args:
+            api_key (str): API key to validate
+            
+        Returns:
+            str: User name if valid, empty string if invalid
+        """
+        if self.use_mongodb and self.api_keys_collection is not None:
+            # Use MongoDB
+            try:
+                key_entry = self.api_keys_collection.find_one({"api_key": api_key})
+                if key_entry:
+                    # Update last used timestamp
+                    self.api_keys_collection.update_one(
+                        {"_id": key_entry["_id"]}, 
+                        {"$set": {"last_used": datetime.datetime.now().isoformat()}}
+                    )
+                    return key_entry["user_name"]
+            except Exception as e:
+                print(f"Error validating API key in MongoDB: {e}")
+        else:
+            # Use file-based storage
+            # Check all user API key files
+            import glob
+            api_keys_files = glob.glob(os.path.join(self.community_dir, "api_keys_*.json"))
+            for api_keys_file in api_keys_files:
+                try:
+                    with open(api_keys_file, 'r') as f:
+                        api_keys = json.load(f)
+                    for key_entry in api_keys:
+                        if key_entry.get("api_key") == api_key:
+                            # Update last used timestamp
+                            key_entry["last_used"] = datetime.datetime.now().isoformat()
+                            with open(api_keys_file, 'w') as f:
+                                json.dump(api_keys, f, indent=2)
+                            # Extract user name from filename
+                            user_name = os.path.basename(api_keys_file)[9:-5]  # Remove "api_keys_" and ".json"
+                            return user_name
+                except (json.JSONDecodeError, FileNotFoundError):
+                    continue
+        return ""
+
+    def calculate_dataset_quality_score(self, dataset_id: str) -> Dict:
+        """
+        Calculate quality metrics for a dataset
+        
+        Args:
+            dataset_id (str): ID of the dataset
+            
+        Returns:
+            Dict: Quality metrics
+        """
+        # Get the dataset
+        dataset = self.get_dataset_by_id(dataset_id)
+        if not dataset:
+            return {}
+        
+        # Basic quality metrics
+        quality_metrics = {
+            "entity_count": dataset.get("entity_count", 0),
+            "description_length": len(dataset.get("description", "")),
+            "tag_count": len(dataset.get("tags", [])),
+            "download_count": dataset.get("download_count", 0),
+            "like_count": dataset.get("likes", 0),
+            "engagement_score": dataset.get("download_count", 0) + dataset.get("likes", 0)
+        }
+        
+        # Calculate overall quality score (simple weighted sum)
+        quality_score = (
+            min(quality_metrics["entity_count"] / 100, 1) * 30 +  # Entity count (max 30 points)
+            min(quality_metrics["description_length"] / 100, 1) * 20 +  # Description length (max 20 points)
+            min(quality_metrics["tag_count"] / 5, 1) * 10 +  # Tag count (max 10 points)
+            min(quality_metrics["engagement_score"] / 50, 1) * 40  # Engagement (max 40 points)
+        )
+        
+        quality_metrics["overall_score"] = round(quality_score, 2)
+        
+        return quality_metrics
+
+# Create global instance with MongoDB support
 import os
 mongodb_uri = os.environ.get("MONGODB_URI", "mongodb+srv://Zain_admin:2ea898dxeI%40@cluster0.flv8jkk.mongodb.net/")
 community_datasets = CommunityDatasets(mongodb_uri=mongodb_uri)
-
-if __name__ == "__main__":
-    # Example usage
-    community = CommunityDatasets(mongodb_uri=mongodb_uri)
-    
-    # Add some sample entries
-    community.share_dataset(
-        filename="news_articles.csv",
-        description="Dataset of news articles with named entities",
-        tags=["news", "NER", "articles"],
-        mode="smart",
-        format_type="csv",
-        entity_count=1250,
-        user_name="John Doe"
-    )
-    
-    community.share_dataset(
-        filename="financial_reports.json",
-        description="Financial reports with monetary entities",
-        tags=["finance", "money", "reports"],
-        mode="fast",
-        format_type="json",
-        entity_count=875,
-        user_name="Jane Smith"
-    )
-    
-    # Display community datasets
-    print("Community Datasets:")
-    print("-" * 50)
-    datasets = community.get_community_datasets()
-    for dataset in datasets:
-        print(f"ID: {dataset['id']}")
-        print(f"File: {dataset['filename']}")
-        print(f"Description: {dataset['description']}")
-        print(f"Tags: {', '.join(dataset['tags'])}")
-        print(f"Mode: {dataset['mode']}")
-        print(f"Format: {dataset['format']}")
-        print(f"Entities: {dataset['entity_count']}")
-        print(f"Shared by: {dataset['user_name']}")
-        print(f"Likes: {dataset['likes']}, Downloads: {dataset['download_count']}")
-        print("-" * 30)

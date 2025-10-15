@@ -7,19 +7,24 @@ import json
 import datetime
 from typing import List, Dict, Optional
 from pathlib import Path
+import io
 
 # Load environment variables
 from dotenv import load_dotenv
 load_dotenv()
 
-# Try to import pymongo for MongoDB support
+# Try to import pymongo and gridfs for MongoDB support
 try:
     from pymongo import MongoClient
+    from gridfs import GridFS
+    from bson import ObjectId
     MONGO_AVAILABLE = True
 except ImportError:
     MONGO_AVAILABLE = False
-    print("pymongo not installed. Install with: pip install pymongo")
+    print("pymongo/gridfs not installed. Install with: pip install pymongo")
     MongoClient = None
+    GridFS = None
+    ObjectId = None
 
 class DatasetHistory:
     """Manage dataset creation history"""
@@ -34,6 +39,7 @@ class DatasetHistory:
         self.client = None
         self.db = None
         self.collection = None
+        self.gridfs = None
         self.use_mongodb = False
         
         # Try to connect to MongoDB if URI is provided
@@ -42,6 +48,7 @@ class DatasetHistory:
                 self.client = MongoClient(mongodb_uri)
                 self.db = self.client[database_name]
                 self.collection = self.db["dataset_history"]
+                self.gridfs = GridFS(self.db) if GridFS else None
                 # Test connection
                 self.client.admin.command('ping')
                 self.use_mongodb = True
@@ -53,13 +60,13 @@ class DatasetHistory:
         else:
             self.use_mongodb = False
             self.ensure_history_dir()
-        
+            
     def ensure_history_dir(self):
         """Ensure history directory exists"""
         if not os.path.exists(self.history_dir):
             os.makedirs(self.history_dir)
             
-    def add_to_history(self, filename: str, mode: str, format_type: str, entity_count: int = 0):
+    def add_to_history(self, filename: str, mode: str, format_type: str, entity_count: int = 0, file_content: Optional[bytes] = None):
         """
         Add a dataset to history
         
@@ -68,6 +75,7 @@ class DatasetHistory:
             mode (str): Processing mode (fast/smart)
             format_type (str): Output format (csv/json/spacy)
             entity_count (int): Number of entities in the dataset
+            file_content (bytes): Content of the file to store in GridFS
         """
         # Create history entry
         entry = {
@@ -75,17 +83,29 @@ class DatasetHistory:
             "mode": mode,
             "format": format_type,
             "entity_count": entity_count,
-            "timestamp": datetime.datetime.now().isoformat(),
-            "file_path": os.path.join("outputs", filename)
+            "timestamp": datetime.datetime.now().isoformat()
         }
         
-        if self.use_mongodb and self.collection is not None:
-            # Use MongoDB
+        if self.use_mongodb and self.collection is not None and self.gridfs is not None:
+            # Use MongoDB with GridFS
+            if file_content:
+                # Store file in GridFS and save the file ID in the entry
+                file_id = self.gridfs.put(file_content, filename=filename)
+                entry["file_id"] = str(file_id)
             result = self.collection.insert_one(entry)
             entry["id"] = str(result.inserted_id)
+            print(f"Added to MongoDB history: {entry}")  # Debug line
         else:
             # Use file-based storage
             entry["id"] = len(self.get_history()) + 1
+            file_path = os.path.join("outputs", filename)
+            entry["file_path"] = file_path
+            
+            # Save file to outputs directory
+            if file_content:
+                os.makedirs("outputs", exist_ok=True)
+                with open(file_path, "wb") as f:
+                    f.write(file_content)
             
             # Load existing history
             history = self.get_history()
@@ -95,6 +115,7 @@ class DatasetHistory:
             history_path = os.path.join(self.history_dir, self.history_file)
             with open(history_path, 'w') as f:
                 json.dump(history, f, indent=2)
+            print(f"Added to file history: {entry}")  # Debug line
             
     def get_history(self) -> List[Dict]:
         """
@@ -108,15 +129,16 @@ class DatasetHistory:
             try:
                 # Get all datasets and include the _id field this time
                 datasets = list(self.collection.find({}))
+                print(f"Retrieved {len(datasets)} datasets from MongoDB")  # Debug line
                 # Process datasets to ensure they have proper id field
                 processed_datasets = []
                 for dataset in datasets:
                     # Convert ObjectId to string for the id field
-                    from bson import ObjectId
-                    if '_id' in dataset:
+                    if '_id' in dataset and ObjectId is not None:
                         dataset['id'] = str(dataset['_id'])
                         del dataset['_id']
                     processed_datasets.append(dataset)
+                print(f"Processed datasets: {processed_datasets}")  # Debug line
                 return processed_datasets
             except Exception as e:
                 print(f"Error retrieving history from MongoDB: {e}")
@@ -127,7 +149,10 @@ class DatasetHistory:
             if os.path.exists(history_path):
                 try:
                     with open(history_path, 'r') as f:
-                        return json.load(f)
+                        data = json.load(f)
+                        print(f"Retrieved {len(data)} datasets from file")  # Debug line
+                        print(f"File datasets: {data}")  # Debug line
+                        return data
                 except (json.JSONDecodeError, FileNotFoundError):
                     return []
             return []
@@ -157,10 +182,9 @@ class DatasetHistory:
         Returns:
             Dict: Dataset entry or empty dict if not found
         """
-        if self.use_mongodb and self.collection is not None:
+        if self.use_mongodb and self.collection is not None and ObjectId is not None:
             # Use MongoDB
             try:
-                from bson import ObjectId
                 # Try to find by ObjectId if dataset_id is a string
                 if isinstance(dataset_id, str):
                     try:
@@ -207,6 +231,44 @@ class DatasetHistory:
                     return entry
             return {}
         
+    def get_file_content(self, dataset: Dict) -> Optional[bytes]:
+        """
+        Get the file content for a dataset
+        
+        Args:
+            dataset (Dict): Dataset entry
+            
+        Returns:
+            bytes: File content or None if not found
+        """
+        if self.use_mongodb and self.gridfs is not None and ObjectId is not None:
+            # Use MongoDB GridFS
+            try:
+                if "file_id" in dataset:
+                    file_id = dataset["file_id"]
+                    # Try to get file by ObjectId
+                    try:
+                        return self.gridfs.get(ObjectId(file_id)).read()
+                    except Exception:
+                        # If ObjectId conversion fails, return None
+                        return None
+                else:
+                    # Try to find file by filename
+                    grid_out = self.gridfs.find_one({"filename": dataset["filename"]})
+                    if grid_out:
+                        return grid_out.read()
+                    return None
+            except Exception as e:
+                print(f"Error retrieving file from GridFS: {e}")
+                return None
+        else:
+            # Use file-based storage
+            file_path = dataset.get("file_path")
+            if file_path and os.path.exists(file_path):
+                with open(file_path, "rb") as f:
+                    return f.read()
+            return None
+        
     def delete_dataset(self, dataset_id) -> bool:
         """
         Delete a dataset entry from history (not the actual file)
@@ -217,10 +279,9 @@ class DatasetHistory:
         Returns:
             bool: True if deleted, False if not found
         """
-        if self.use_mongodb and self.collection is not None:
+        if self.use_mongodb and self.collection is not None and ObjectId is not None:
             # Use MongoDB
             try:
-                from bson import ObjectId
                 # Try to delete by ObjectId first
                 if isinstance(dataset_id, str):
                     try:
@@ -263,7 +324,7 @@ class DatasetHistory:
             history_path = os.path.join(self.history_dir, self.history_file)
             if os.path.exists(history_path):
                 os.remove(history_path)
-            
+                
     def get_file_info(self, file_path: str) -> Dict:
         """
         Get file information
@@ -287,7 +348,35 @@ class DatasetHistory:
             pass
         return {"exists": False}
 
-# Global instance with MongoDB support
+    def delete_user_dataset(self, user_id: str, dataset_id: str) -> bool:
+        """
+        Delete a user's dataset entry from history (not the actual file)
+        
+        Args:
+            user_id (str): User ID
+            dataset_id (str): Dataset ID to delete
+            
+        Returns:
+            bool: True if deleted, False if not found
+        """
+        if self.use_mongodb and self.db is not None:
+            try:
+                user_datasets_collection = self.db["user_datasets"]
+                # Delete the specific user dataset
+                result = user_datasets_collection.delete_one({
+                    "user_id": user_id,
+                    "user_dataset_id": dataset_id
+                })
+                return result.deleted_count > 0
+            except Exception as e:
+                print(f"Error deleting user dataset from MongoDB: {e}")
+                return False
+        else:
+            # For file-based storage, we don't have user-specific datasets
+            # This method is primarily for MongoDB implementation
+            return False
+
+# Create global instance with MongoDB support
 import os
 mongodb_uri = os.environ.get("MONGODB_URI", "mongodb+srv://Zain_admin:2ea898dxeI%40@cluster0.flv8jkk.mongodb.net/")
 dataset_history = DatasetHistory(mongodb_uri=mongodb_uri)

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataset Collections - Text2Dataset</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .collection-item {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+
+        .collection-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .collection-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .datasets-list {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .dataset-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .dataset-item:last-child {
+            border-bottom: none;
+        }
+
+        .public-badge {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .private-badge {
+            background: #fff3e0;
+            color: #ef6c00;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-folder"></i> Dataset Collections</h1>
+            <p>Organize and share groups of related datasets</p>
+            {% if current_user %}
+            <div class="user-info">
+                <span>Welcome, {{ current_user }}!</span>
+                <a href="/logout" class="btn-small">Logout</a>
+            </div>
+            {% else %}
+            <div class="auth-links">
+                <a href="/login" class="btn-small">Login</a>
+                <a href="/signup" class="btn-small">Sign Up</a>
+            </div>
+            {% endif %}
+            <!-- Navigation Bar -->
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="/"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="/history"><i class="fas fa-history"></i> History</a></li>
+                    <li><a href="/community"><i class="fas fa-users"></i> Community</a></li>
+                    <li><a href="/global_chat_page"><i class="fas fa-comments"></i> Global Chat</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <div class="card">
+                <div class="header-actions">
+                    <h2><i class="fas fa-folder"></i> Dataset Collections</h2>
+                    {% if current_user %}
+                    <button id="create-collection-btn" class="btn-primary">
+                        <i class="fas fa-plus"></i> Create Collection
+                    </button>
+                    {% endif %}
+                </div>
+
+                {% if collections %}
+                <div class="collections-list">
+                    {% for collection in collections %}
+                    <div class="collection-item">
+                        <div class="collection-header">
+                            <h3>{{ collection.name }}</h3>
+                            <div class="collection-actions">
+                                <span class="public-badge" {% if not collection.is_public %}style="display:none" {%
+                                    endif %}>Public</span>
+                                <span class="private-badge" {% if collection.is_public %}style="display:none" {% endif
+                                    %}>Private</span>
+                            </div>
+                        </div>
+
+                        <p>{{ collection.description }}</p>
+
+                        <div class="collection-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-user"></i>
+                                <span>Created by: {{ collection.created_by }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-calendar"></i>
+                                <span>Created: {{ collection.timestamp[:19].replace("T", " ") }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-database"></i>
+                                <span>{{ collection.dataset_ids|length }} datasets</span>
+                            </div>
+                        </div>
+
+                        {% if collection.dataset_ids %}
+                        <div class="datasets-list">
+                            <h4><i class="fas fa-list"></i> Datasets in this collection:</h4>
+                            {% for dataset_id in collection.dataset_ids %}
+                            {% set dataset = get_dataset_by_id(dataset_id) %}
+                            {% if dataset %}
+                            <div class="dataset-item">
+                                <strong>{{ dataset.filename }}</strong>
+                                <div class="dataset-meta">
+                                    <span class="badge badge-{{ dataset.mode }}">{{ dataset.mode|title }} Mode</span>
+                                    <span class="badge badge-{{ dataset.format }}">{{ dataset.format|upper }}
+                                        Format</span>
+                                    <span class="badge badge-info">{{ dataset.entity_count }} entities</span>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-folder-open fa-3x"></i>
+                    <h3>No Collections Found</h3>
+                    <p>{% if current_user %}You haven't created any collections yet.{% else %}No public collections
+                        available.{% endif %}</p>
+                    {% if current_user %}
+                    <button id="create-collection-btn" class="btn-primary">
+                        <i class="fas fa-plus"></i> Create Your First Collection
+                    </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </main>
+
+        <footer>
+            <p>Made with <i class="fas fa-heart"></i> for AI researchers and developers</p>
+            <p><a href="https://github.com" target="_blank"><i class="fab fa-github"></i> View on GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('create-collection-btn')?.addEventListener('click', function () {
+            // Show the collection creation modal
+            document.getElementById('collection-modal').style.display = 'block';
+            // Load user datasets
+            loadUserDatasets();
+        });
+
+        // Close modal when clicking on the close button
+        document.querySelector('.modal .close')?.addEventListener('click', function () {
+            document.getElementById('collection-modal').style.display = 'none';
+        });
+
+        // Close modal when clicking outside of it
+        window.addEventListener('click', function (event) {
+            const modal = document.getElementById('collection-modal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        });
+
+        // Load user datasets for selection
+        function loadUserDatasets() {
+            fetch('/api/user_datasets')
+                .then(response => response.json())
+                .then(datasets => {
+                    const container = document.getElementById('dataset-selection');
+                    if (datasets.length === 0) {
+                        container.innerHTML = '<p>You have no datasets to add to a collection.</p>';
+                        return;
+                    }
+
+                    let html = '<div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">';
+                    datasets.forEach(dataset => {
+                        html += `
+                            <label class="dataset-checkbox">
+                                <input type="checkbox" name="dataset_ids" value="${dataset.id}">
+                                ${dataset.filename} (${dataset.mode} mode, ${dataset.format} format)
+                            </label>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error loading datasets:', error);
+                    document.getElementById('dataset-selection').innerHTML = '<p>Error loading datasets.</p>';
+                });
+        }
+
+        // Handle form submission
+        document.getElementById('create-collection-form')?.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const name = document.getElementById('collection-name').value.trim();
+            const description = document.getElementById('collection-description').value.trim();
+            const isPublic = document.getElementById('collection-public').checked;
+            const datasetIds = Array.from(document.querySelectorAll('input[name="dataset_ids"]:checked'))
+                .map(cb => cb.value);
+
+            if (!name) {
+                alert('Please enter a collection name.');
+                return;
+            }
+
+            const btn = this.querySelector('button[type="submit"]');
+            const originalBtnText = btn.innerHTML;
+
+            // Show loading state
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            btn.disabled = true;
+
+            // Create FormData object
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('description', description);
+            formData.append('is_public', isPublic ? 'true' : 'false');
+            formData.append('dataset_ids', JSON.stringify(datasetIds));
+
+            fetch('/collections', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        // Reload the page to show the new collection
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                        // Reset button
+                        btn.innerHTML = originalBtnText;
+                        btn.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while creating the collection.');
+                    // Reset button
+                    btn.innerHTML = originalBtnText;
+                    btn.disabled = false;
+                });
+        });
+    </script>
+
+    <!-- Collection Creation Modal -->
+    <div id="collection-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-folder-plus"></i> Create New Collection</h2>
+            <form id="create-collection-form">
+                <div class="input-group">
+                    <label for="collection-name">Collection Name:</label>
+                    <input type="text" id="collection-name" name="name" required>
+                </div>
+
+                <div class="input-group">
+                    <label for="collection-description">Description:</label>
+                    <textarea id="collection-description" name="description" rows="3"></textarea>
+                </div>
+
+                <div class="input-group">
+                    <label>
+                        <input type="checkbox" id="collection-public" name="is_public">
+                        Make this collection public
+                    </label>
+                </div>
+
+                <div class="input-group">
+                    <label>Datasets to include:</label>
+                    <div id="dataset-selection">
+                        <!-- Datasets will be loaded here dynamically -->
+                        <p>Loading datasets...</p>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-plus"></i> Create Collection
+                    </button>
+                    <button type="button" class="btn-secondary"
+                        onclick="document.getElementById('collection-modal').style.display='none'">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <style>
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .dataset-checkbox {
+            display: block;
+            margin: 5px 0;
+            padding: 5px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+
+        .dataset-checkbox:hover {
+            background-color: #f5f5f5;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</body>
+
+</html>

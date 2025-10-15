@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataset Versions - Text2Dataset</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .version-item {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+
+        .version-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .version-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .changelog {
+            background: #e3f2fd;
+            border-left: 4px solid #1976d2;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-code-branch"></i> Dataset Versions</h1>
+            <p>Version history for dataset: {{ dataset.filename }}</p>
+            {% if current_user %}
+            <div class="user-info">
+                <span>Welcome, {{ current_user }}!</span>
+                <a href="/logout" class="btn-small">Logout</a>
+            </div>
+            {% else %}
+            <div class="auth-links">
+                <a href="/login" class="btn-small">Login</a>
+                <a href="/signup" class="btn-small">Sign Up</a>
+            </div>
+            {% endif %}
+            <!-- Navigation Bar -->
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="/"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="/history"><i class="fas fa-history"></i> History</a></li>
+                    <li><a href="/community"><i class="fas fa-users"></i> Community</a></li>
+                    <li><a href="/global_chat_page"><i class="fas fa-comments"></i> Global Chat</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <div class="card">
+                <div class="header-actions">
+                    <h2><i class="fas fa-history"></i> Version History</h2>
+                    <div class="nav-buttons">
+                        {% if current_user and (dataset.user_name == current_user or current_user == "admin") %}
+                        <a href="/dataset/{{ dataset.id }}/edit" class="btn-secondary">
+                            <i class="fas fa-edit"></i> Edit Dataset
+                        </a>
+                        {% endif %}
+                        <a href="/community" class="btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Datasets
+                        </a>
+                    </div>
+                </div>
+
+                {% if current_user and (dataset.user_name == current_user or current_user == "admin") %}
+                <div class="card">
+                    <h3><i class="fas fa-plus-circle"></i> Create New Version</h3>
+                    <form id="create-version-form">
+                        <div class="input-group">
+                            <label for="version_notes">Version Notes (Changelog):</label>
+                            <textarea id="version_notes" name="version_notes" rows="4"
+                                placeholder="Describe what changes are in this version..."></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-code-branch"></i> Create Version
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+
+                {% if versions %}
+                <div class="versions-list">
+                    {% for version in versions|reverse %}
+                    <div class="version-item">
+                        <div class="version-header">
+                            <h3>Version {{ version.version }}</h3>
+                            <div class="version-actions">
+                                <a href="/download_community/{{ version.original_dataset.id }}" class="btn-primary">
+                                    <i class="fas fa-download"></i> Download
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="version-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-user"></i>
+                                <span>Created by: {{ version.created_by }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-calendar"></i>
+                                <span>Created: {{ version.timestamp[:19].replace("T", " ") }}</span>
+                            </div>
+                        </div>
+
+                        {% if version.version_notes %}
+                        <div class="changelog">
+                            <h4><i class="fas fa-sticky-note"></i> Changelog</h4>
+                            <p>{{ version.version_notes }}</p>
+                        </div>
+                        {% endif %}
+
+                        <div class="dataset-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-tag"></i>
+                                <span>Tags:
+                                    {% for tag in version.original_dataset.tags %}
+                                    <span class="tag">{{ tag }}</span>
+                                    {% endfor %}
+                                </span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-cogs"></i>
+                                <span class="badge badge-{{ version.original_dataset.mode }}">{{
+                                    version.original_dataset.mode|title }} Mode</span>
+                                <span class="badge badge-{{ version.original_dataset.format }}">{{
+                                    version.original_dataset.format|upper }} Format</span>
+                                <span class="badge badge-info">{{ version.original_dataset.entity_count }}
+                                    entities</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox fa-3x"></i>
+                    <h3>No Versions Found</h3>
+                    <p>This dataset doesn't have any versions yet.</p>
+                    {% if current_user %}
+                    <p>Create a new version to track changes to this dataset.</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </main>
+
+        <footer>
+            <p>Made with <i class="fas fa-heart"></i> for AI researchers and developers</p>
+            <p><a href="https://github.com" target="_blank"><i class="fab fa-github"></i> View on GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Handle version creation form submission
+        document.getElementById('create-version-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const datasetId = "{{ dataset.id }}";
+            const versionNotes = document.getElementById('version_notes').value.trim();
+
+            if (!versionNotes) {
+                alert('Please enter version notes.');
+                return;
+            }
+
+            const btn = this.querySelector('button');
+            const originalBtnText = btn.innerHTML;
+
+            // Show loading state
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            btn.disabled = true;
+
+            // Create FormData object
+            const formData = new FormData();
+            formData.append('version_notes', versionNotes);
+
+            fetch(`/dataset/${datasetId}/version`, {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        // Reload the page to show the new version
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                        // Reset button
+                        btn.innerHTML = originalBtnText;
+                        btn.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while creating the version.');
+                    // Reset button
+                    btn.innerHTML = originalBtnText;
+                    btn.disabled = false;
+                });
+        });
+    </script>
+</body>
+
+</html>

@@ -142,7 +142,12 @@
                     <li><a href="/"><i class="fas fa-home"></i> Home</a></li>
                     <li><a href="/history"><i class="fas fa-history"></i> History</a></li>
                     <li><a href="/community"><i class="fas fa-users"></i> Datasets</a></li>
+                    <li><a href="/collections"><i class="fas fa-folder"></i> Collections</a></li>
                     <li><a href="/global_chat_page" class="active"><i class="fas fa-comments"></i> Global Chat</a></li>
+                    {% if current_user %}
+                    <li><a href="/notifications"><i class="fas fa-bell"></i> Notifications</a></li>
+                    <li><a href="/api_docs"><i class="fas fa-code"></i> API</a></li>
+                    {% endif %}
                 </ul>
             </nav>
         </header>

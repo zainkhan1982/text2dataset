@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - Text2Dataset</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .notification-item {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+
+        .notification-item.unread {
+            background: #e3f2fd;
+            border-left: 4px solid #1976d2;
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .notification-content {
+            margin-bottom: 15px;
+        }
+
+        .notification-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .notification-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .type-like {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .type-download {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .type-mention {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .type-new-dataset {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .mark-read-btn {
+            background: #e0e0e0;
+            color: #666;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .mark-read-btn:hover {
+            background: #bdbdbd;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-bell"></i> Notifications</h1>
+            <p>Stay updated with community activity</p>
+            {% if current_user %}
+            <div class="user-info">
+                <span>Welcome, {{ current_user }}!</span>
+                <a href="/logout" class="btn-small">Logout</a>
+            </div>
+            {% else %}
+            <div class="auth-links">
+                <a href="/login" class="btn-small">Login</a>
+                <a href="/signup" class="btn-small">Sign Up</a>
+            </div>
+            {% endif %}
+            <!-- Navigation Bar -->
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="/"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="/history"><i class="fas fa-history"></i> History</a></li>
+                    <li><a href="/community"><i class="fas fa-users"></i> Community</a></li>
+                    <li><a href="/global_chat_page"><i class="fas fa-comments"></i> Global Chat</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <div class="card">
+                <div class="header-actions">
+                    <h2><i class="fas fa-bell"></i> Notifications</h2>
+                    {% if notifications %}
+                    <button id="mark-all-read-btn" class="btn-secondary">
+                        <i class="fas fa-check"></i> Mark All as Read
+                    </button>
+                    {% endif %}
+                </div>
+
+                {% if notifications %}
+                <div class="notifications-list">
+                    {% for notification in notifications|reverse %}
+                    <div class="notification-item {% if not notification.read %}unread{% endif %}"
+                        data-notification-id="{{ notification.id }}">
+                        <div class="notification-header">
+                            <h3>
+                                <span class="notification-type type-{{ notification.type }}">
+                                    {{ notification.type|title }}
+                                </span>
+                            </h3>
+                            {% if not notification.read %}
+                            <button class="mark-read-btn" data-notification-id="{{ notification.id }}">
+                                Mark as Read
+                            </button>
+                            {% endif %}
+                        </div>
+
+                        <div class="notification-content">
+                            <p>{{ notification.message }}</p>
+                        </div>
+
+                        <div class="notification-meta">
+                            <span><i class="fas fa-calendar"></i> {{ notification.timestamp[:19].replace("T", " ")
+                                }}</span>
+                            {% if notification.read %}
+                            <span><i class="fas fa-check-circle"></i> Read</span>
+                            {% else %}
+                            <span><i class="fas fa-envelope"></i> Unread</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-bell-slash fa-3x"></i>
+                    <h3>No Notifications</h3>
+                    <p>You don't have any notifications at the moment.</p>
+                    <p>Notifications will appear here when your datasets are liked, downloaded, or when you're mentioned
+                        in chat.</p>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+
+        <footer>
+            <p>Made with <i class="fas fa-heart"></i> for AI researchers and developers</p>
+            <p><a href="https://github.com" target="_blank"><i class="fab fa-github"></i> View on GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Handle mark as read button clicks
+        document.querySelectorAll('.mark-read-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const notificationId = this.getAttribute('data-notification-id');
+                markNotificationAsRead(notificationId);
+            });
+        });
+
+        // Handle mark all as read button
+        document.getElementById('mark-all-read-btn')?.addEventListener('click', function () {
+            document.querySelectorAll('.notification-item.unread').forEach(item => {
+                const notificationId = item.getAttribute('data-notification-id');
+                markNotificationAsRead(notificationId);
+            });
+        });
+
+        // Function to mark a notification as read
+        function markNotificationAsRead(notificationId) {
+            fetch(`/notifications/${notificationId}/read`, {
+                method: 'POST'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update UI
+                        const notificationItem = document.querySelector(`.notification-item[data-notification-id="${notificationId}"]`);
+                        if (notificationItem) {
+                            notificationItem.classList.remove('unread');
+                            const markReadBtn = notificationItem.querySelector('.mark-read-btn');
+                            if (markReadBtn) {
+                                markReadBtn.remove();
+                            }
+                            const meta = notificationItem.querySelector('.notification-meta');
+                            if (meta) {
+                                meta.innerHTML = `
+                                <span><i class="fas fa-calendar"></i> ${meta.querySelector('span').textContent}</span>
+                                <span><i class="fas fa-check-circle"></i> Read</span>
+                            `;
+                            }
+                        }
+                    } else {
+                        alert('Error marking notification as read: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while marking the notification as read.');
+                });
+        }
+    </script>
+</body>
+
+</html>

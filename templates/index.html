@@ -31,7 +31,12 @@
                     <li><a href="/" class="active"><i class="fas fa-home"></i> Home</a></li>
                     <li><a href="/history"><i class="fas fa-history"></i> History</a></li>
                     <li><a href="/community"><i class="fas fa-users"></i> Community</a></li>
+                    <li><a href="/collections"><i class="fas fa-folder"></i> Collections</a></li>
                     <li><a href="/global_chat_page"><i class="fas fa-comments"></i> Global Chat</a></li>
+                    {% if current_user %}
+                    <li><a href="/notifications"><i class="fas fa-bell"></i> Notifications</a></li>
+                    <li><a href="/api_docs"><i class="fas fa-code"></i> API</a></li>
+                    {% endif %}
                     <li><a href="#upload" id="upload-nav-link"><i class="fas fa-upload"></i> Upload</a></li>
                 </ul>
             </nav>
@@ -186,15 +191,34 @@
                     select.innerHTML = '<option value="">-- Select a Dataset --</option>';
 
                     // Add user's datasets
-                    datasets.forEach(dataset => {
+                    if (Array.isArray(datasets) && datasets.length > 0) {
+                        datasets.forEach(dataset => {
+                            const option = document.createElement('option');
+                            option.value = dataset.id;
+                            option.textContent = dataset.filename + ' (' + dataset.mode + ' mode, ' + dataset.format + ' format)';
+                            select.appendChild(option);
+                        });
+                    } else {
+                        // No datasets available
                         const option = document.createElement('option');
-                        option.value = dataset.id;
-                        option.textContent = dataset.filename;
+                        option.value = '';
+                        option.textContent = 'No datasets available to share';
+                        option.disabled = true;
                         select.appendChild(option);
-                    });
+                    }
+                } else if (response.status === 401) {
+                    // User not authenticated
+                    const select = document.getElementById('share_dataset_id');
+                    select.innerHTML = '<option value="">-- Please log in to share datasets --</option>';
+                } else {
+                    // Other error
+                    const select = document.getElementById('share_dataset_id');
+                    select.innerHTML = '<option value="">-- Error loading datasets --</option>';
                 }
             } catch (error) {
                 console.error('Error fetching user datasets:', error);
+                const select = document.getElementById('share_dataset_id');
+                select.innerHTML = '<option value="">-- Error loading datasets --</option>';
             }
         }
 
@@ -276,6 +300,12 @@
             e.preventDefault();
 
             const formData = new FormData(this);
+            const btn = this.querySelector('button[type="submit"]');
+
+            // Show loading state
+            const originalBtnText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sharing...';
+            btn.disabled = true;
 
             fetch('/share_dataset', {
                 method: 'POST',
@@ -288,7 +318,10 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred while sharing the dataset.');
+                    alert('An error occurred while sharing the dataset: ' + error.message);
+                    // Reset button
+                    btn.innerHTML = originalBtnText;
+                    btn.disabled = false;
                 });
         });
     </script>
