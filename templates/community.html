@@ -6,12 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Community Datasets - Text2Dataset</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
     <style>
         /* Chat Styles */
         .chat-container {
             margin-top: 20px;
-            border-top: 1px solid #eee;
+            border-top: 1px solid var(--border-color);
             padding-top: 20px;
         }
 
@@ -25,17 +26,18 @@
         .chat-messages {
             max-height: 300px;
             overflow-y: auto;
-            border: 1px solid #eee;
-            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
             padding: 15px;
-            background: #fafafa;
+            background: rgba(0, 0, 0, 0.1);
             margin-bottom: 15px;
+            backdrop-filter: blur(5px);
         }
 
         .chat-message {
             margin-bottom: 15px;
             padding-bottom: 15px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .chat-message:last-child {
@@ -46,17 +48,18 @@
 
         .chat-user {
             font-weight: 600;
-            color: #667eea;
+            color: var(--primary-color);
             margin-bottom: 5px;
         }
 
         .chat-content {
             margin-bottom: 5px;
+            color: var(--text-primary);
         }
 
         .chat-timestamp {
             font-size: 0.8rem;
-            color: #999;
+            color: var(--text-secondary);
         }
 
         .chat-form {
@@ -66,38 +69,44 @@
 
         .chat-form input {
             flex: 1;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background: rgba(0, 0, 0, 0.2);
+            color: var(--text-primary);
+            backdrop-filter: blur(5px);
         }
 
         .chat-form button {
-            padding: 10px 15px;
+            padding: 12px 20px;
         }
 
         .no-messages {
             text-align: center;
-            color: #999;
+            color: var(--text-secondary);
             font-style: italic;
+            padding: 20px;
         }
 
         /* Delete Button */
         .btn-delete {
-            background: #ffebee;
-            color: #c62828;
-            border: 1px solid #ffcdd2;
+            background: rgba(255, 23, 68, 0.1);
+            color: var(--error-color);
+            border: 1px solid rgba(255, 23, 68, 0.2);
             padding: 8px 12px;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 0.9rem;
             display: inline-flex;
             align-items: center;
             gap: 5px;
+            transition: var(--transition);
         }
 
         .btn-delete:hover {
-            background: #ffcdd2;
+            background: rgba(255, 23, 68, 0.2);
             transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(255, 23, 68, 0.2);
         }
     </style>
 </head>
@@ -129,6 +138,7 @@
                     {% if current_user %}
                     <li><a href="/notifications"><i class="fas fa-bell"></i> Notifications</a></li>
                     {% endif %}
+                    <li><a href="/plans"><i class="fas fa-credit-card"></i> Plans</a></li>
                 </ul>
             </nav>
         </header>
@@ -178,6 +188,9 @@
                                         <i class="fas fa-heart"></i> {{ dataset.likes }}
                                     </button>
                                 </form>
+                                <a href="/visualize/{{ dataset.id }}" class="btn-secondary">
+                                    <i class="fas fa-chart-bar"></i> Visualize
+                                </a>
                                 <a href="/view_community/{{ dataset.id }}" class="btn-secondary" target="_blank">
                                     <i class="fas fa-eye"></i> View
                                 </a>

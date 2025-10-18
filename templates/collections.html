@@ -8,12 +8,29 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/style.css">
     <style>
+        /* Dark theme styles for better visibility */
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+
+        .container {
+            background-color: #2d2d2d;
+            color: #e0e0e0;
+        }
+
+        header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: #ffffff;
+        }
+
         .collection-item {
-            border: 1px solid #eee;
+            border: 1px solid #444;
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
-            background: #fafafa;
+            background: #333;
+            color: #e0e0e0;
         }
 
         .collection-header {
@@ -34,17 +51,19 @@
             align-items: center;
             gap: 8px;
             flex-wrap: wrap;
+            color: #bbbbbb;
         }
 
         .datasets-list {
             margin-top: 15px;
             padding-top: 15px;
-            border-top: 1px solid #eee;
+            border-top: 1px solid #444;
         }
 
         .dataset-item {
             padding: 10px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #444;
+            color: #e0e0e0;
         }
 
         .dataset-item:last-child {
@@ -52,8 +71,8 @@
         }
 
         .public-badge {
-            background: #e8f5e9;
-            color: #2e7d32;
+            background: #2e7d32;
+            color: #ffffff;
             padding: 4px 8px;
             border-radius: 12px;
             font-size: 0.8rem;
@@ -61,17 +80,115 @@
         }
 
         .private-badge {
-            background: #fff3e0;
-            color: #ef6c00;
+            background: #ef6c00;
+            color: #ffffff;
             padding: 4px 8px;
             border-radius: 12px;
             font-size: 0.8rem;
             font-weight: 600;
         }
+
+        .card {
+            background: #333;
+            color: #e0e0e0;
+            border: 1px solid #444;
+        }
+
+        .card h2,
+        .card h3,
+        .card h4 {
+            color: #ffffff;
+        }
+
+        .empty-state {
+            color: #bbbbbb;
+        }
+
+        .empty-state h3 {
+            color: #ffffff;
+        }
+
+        p {
+            color: #cccccc;
+        }
+
+        a {
+            color: #667eea;
+        }
+
+        a:hover {
+            color: #8a9fff;
+        }
+
+        /* Modal styles */
+        .modal-content {
+            background-color: #333;
+            color: #e0e0e0;
+        }
+
+        .close {
+            color: #ffffff;
+        }
+
+        .close:hover {
+            color: #cccccc;
+        }
+
+        .dataset-checkbox {
+            color: #e0e0e0;
+            border: 1px solid #444;
+        }
+
+        .dataset-checkbox:hover {
+            background-color: #444;
+        }
+
+        input,
+        textarea,
+        select {
+            background-color: #444;
+            color: #e0e0e0;
+            border: 1px solid #555;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary,
+        .btn-secondary,
+        button {
+            color: #ffffff;
+        }
+
+        footer {
+            color: #bbbbbb;
+        }
+
+        footer a {
+            color: #667eea;
+        }
+
+        .btn-small.btn-secondary {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .btn-small.btn-secondary:hover {
+            text-decoration: none;
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 
-<body>
+<body data-theme="dark">
     <div class="container">
         <header>
             <h1><i class="fas fa-folder"></i> Dataset Collections</h1>
@@ -94,6 +211,7 @@
                     <li><a href="/history"><i class="fas fa-history"></i> History</a></li>
                     <li><a href="/community"><i class="fas fa-users"></i> Community</a></li>
                     <li><a href="/global_chat_page"><i class="fas fa-comments"></i> Global Chat</a></li>
+                    <li><a href="/plans"><i class="fas fa-credit-card"></i> Plans</a></li>
                 </ul>
             </nav>
         </header>
@@ -138,13 +256,37 @@
                                 <i class="fas fa-database"></i>
                                 <span>{{ collection.dataset_ids|length }} datasets</span>
                             </div>
+                            {% if current_user %}
+                            <div class="meta-item">
+                                <a href="/collections/{{ collection.id }}/download" class="btn-small btn-secondary"
+                                    title="Download all datasets in this collection">
+                                    <i class="fas fa-download"></i> Download All
+                                </a>
+                            </div>
+                            {% endif %}
                         </div>
 
-                        {% if collection.dataset_ids %}
+                        {% if collection.datasets %}
+                        <div class="datasets-list">
+                            <h4><i class="fas fa-list"></i> Datasets in this collection:</h4>
+                            {% for dataset in collection.datasets %}
+                            <div class="dataset-item">
+                                <strong>{{ dataset.filename }}</strong>
+                                <div class="dataset-meta">
+                                    <span class="badge badge-{{ dataset.mode }}">{{ dataset.mode|title }} Mode</span>
+                                    <span class="badge badge-{{ dataset.format }}">{{ dataset.format|upper }}
+                                        Format</span>
+                                    <span class="badge badge-info">{{ dataset.entity_count }} entities</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% elif collection.dataset_ids %}
                         <div class="datasets-list">
                             <h4><i class="fas fa-list"></i> Datasets in this collection:</h4>
                             {% for dataset_id in collection.dataset_ids %}
-                            {% set dataset = get_dataset_by_id(dataset_id) %}
+                            {% set dataset = get_dataset_by_id_with_user(dataset_id) if get_dataset_by_id_with_user else
+                            None %}
                             {% if dataset %}
                             <div class="dataset-item">
                                 <strong>{{ dataset.filename }}</strong>
@@ -192,6 +334,24 @@
             loadUserDatasets();
         });
 
+        // Also handle the case where the modal might be opened by other means
+        function checkAndLoadDatasets() {
+            const modal = document.getElementById('collection-modal');
+            if (modal && modal.style.display !== 'none') {
+                const datasetSelection = document.getElementById('dataset-selection');
+                if (datasetSelection && datasetSelection.innerHTML.includes('Loading datasets')) {
+                    loadUserDatasets();
+                }
+            }
+        }
+
+        // Check if datasets need to be loaded when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', checkAndLoadDatasets);
+        } else {
+            checkAndLoadDatasets();
+        }
+
         // Close modal when clicking on the close button
         document.querySelector('.modal .close')?.addEventListener('click', function () {
             document.getElementById('collection-modal').style.display = 'none';
@@ -207,10 +367,23 @@
 
         // Load user datasets for selection
         function loadUserDatasets() {
+            const container = document.getElementById('dataset-selection');
+            if (!container) {
+                console.error('Dataset selection container not found');
+                return;
+            }
+
+            // Show loading state
+            container.innerHTML = '<p>Loading datasets...</p>';
+
             fetch('/api/user_datasets')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(datasets => {
-                    const container = document.getElementById('dataset-selection');
                     if (datasets.length === 0) {
                         container.innerHTML = '<p>You have no datasets to add to a collection.</p>';
                         return;
@@ -230,64 +403,88 @@
                 })
                 .catch(error => {
                     console.error('Error loading datasets:', error);
-                    document.getElementById('dataset-selection').innerHTML = '<p>Error loading datasets.</p>';
+                    container.innerHTML = '<p>Error loading datasets: ' + error.message + '</p>';
                 });
         }
 
         // Handle form submission
-        document.getElementById('create-collection-form')?.addEventListener('submit', function (e) {
-            e.preventDefault();
+        function handleFormSubmission() {
+            const form = document.getElementById('create-collection-form');
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
 
-            const name = document.getElementById('collection-name').value.trim();
-            const description = document.getElementById('collection-description').value.trim();
-            const isPublic = document.getElementById('collection-public').checked;
-            const datasetIds = Array.from(document.querySelectorAll('input[name="dataset_ids"]:checked'))
-                .map(cb => cb.value);
+                    console.log('Form submission started');
 
-            if (!name) {
-                alert('Please enter a collection name.');
-                return;
-            }
+                    const name = document.getElementById('collection-name').value.trim();
+                    const description = document.getElementById('collection-description').value.trim();
+                    const isPublic = document.getElementById('collection-public').checked;
+                    const datasetIds = Array.from(document.querySelectorAll('input[name="dataset_ids"]:checked'))
+                        .map(cb => cb.value);
 
-            const btn = this.querySelector('button[type="submit"]');
-            const originalBtnText = btn.innerHTML;
+                    console.log('Form data:', { name, description, isPublic, datasetIds });
 
-            // Show loading state
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
-            btn.disabled = true;
-
-            // Create FormData object
-            const formData = new FormData();
-            formData.append('name', name);
-            formData.append('description', description);
-            formData.append('is_public', isPublic ? 'true' : 'false');
-            formData.append('dataset_ids', JSON.stringify(datasetIds));
-
-            fetch('/collections', {
-                method: 'POST',
-                body: formData
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message);
-                        // Reload the page to show the new collection
-                        location.reload();
-                    } else {
-                        alert('Error: ' + data.message);
-                        // Reset button
-                        btn.innerHTML = originalBtnText;
-                        btn.disabled = false;
+                    if (!name) {
+                        alert('Please enter a collection name.');
+                        return;
                     }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while creating the collection.');
-                    // Reset button
-                    btn.innerHTML = originalBtnText;
-                    btn.disabled = false;
+
+                    const btn = this.querySelector('button[type="submit"]');
+                    const originalBtnText = btn.innerHTML;
+
+                    // Show loading state
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+                    btn.disabled = true;
+
+                    // Create FormData object
+                    const formData = new FormData();
+                    formData.append('name', name);
+                    formData.append('description', description);
+                    formData.append('is_public', isPublic ? 'true' : 'false');
+                    formData.append('dataset_ids', JSON.stringify(datasetIds));
+
+                    console.log('FormData prepared');
+
+                    fetch('/collections', {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(response => {
+                            console.log('Response received:', response);
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('Data received:', data);
+                            if (data.success) {
+                                alert(data.message);
+                                // Reload the page to show the new collection
+                                location.reload();
+                            } else {
+                                alert('Error: ' + data.message);
+                                // Reset button
+                                btn.innerHTML = originalBtnText;
+                                btn.disabled = false;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('An error occurred while creating the collection.');
+                            // Reset button
+                            btn.innerHTML = originalBtnText;
+                            btn.disabled = false;
+                        });
                 });
-        });
+            } else {
+                console.error('Create collection form not found');
+            }
+        }
+
+        // Attach event listener when DOM is loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', handleFormSubmission);
+        } else {
+            handleFormSubmission();
+        }
     </script>
 
     <!-- Collection Creation Modal -->
@@ -295,7 +492,7 @@
         <div class="modal-content">
             <span class="close">&times;</span>
             <h2><i class="fas fa-folder-plus"></i> Create New Collection</h2>
-            <form id="create-collection-form">
+            <form id="create-collection-form" method="post" onsubmit="return false;">
                 <div class="input-group">
                     <label for="collection-name">Collection Name:</label>
                     <input type="text" id="collection-name" name="name" required>

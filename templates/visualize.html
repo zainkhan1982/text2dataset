@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualize Dataset - Text2Dataset</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--border-color);
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .chart-controls select,
+        .chart-controls button {
+            padding: 12px 15px;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            font-size: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            color: var(--text-primary);
+            backdrop-filter: blur(5px);
+        }
+
+        .chart-controls button {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .chart-controls button:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .data-info {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin: 20px 0;
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--border-color);
+        }
+
+        .data-info h3 {
+            margin-top: 0;
+            color: var(--text-primary);
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .data-info ul {
+            list-style-type: disc;
+            padding-left: 20px;
+        }
+
+        .data-info li {
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        .error-message {
+            background-color: rgba(255, 23, 68, 0.1);
+            color: var(--error-color);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin: 20px 0;
+            border-left: 4px solid var(--error-color);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 23, 68, 0.2);
+        }
+
+        .visualization-section {
+            margin: 30px 0;
+        }
+
+        .chart-placeholder {
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: var(--border-radius);
+            margin: 20px 0;
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--border-color);
+        }
+
+        .no-data {
+            text-align: center;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .entity-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin: 15px 0;
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(5px);
+        }
+
+        .entity-item {
+            padding: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .entity-item:last-child {
+            border-bottom: none;
+        }
+
+        .entity-label {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-chart-bar"></i> Text2Dataset Visualization</h1>
+            <p>Visualize entities and labels in your dataset</p>
+            {% if current_user %}
+            <div class="user-info">
+                <span>Welcome, {{ current_user }}!</span>
+                <a href="/logout" class="btn-small">Logout</a>
+            </div>
+            {% endif %}
+            <!-- Navigation Bar -->
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="/"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="/history"><i class="fas fa-history"></i> History</a></li>
+                    <li><a href="/community"><i class="fas fa-users"></i> Community</a></li>
+                    <li><a href="/collections"><i class="fas fa-folder"></i> Collections</a></li>
+                    <li><a href="/global_chat_page"><i class="fas fa-comments"></i> Global Chat</a></li>
+                    {% if current_user %}
+                    <li><a href="/notifications"><i class="fas fa-bell"></i> Notifications</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <div class="card">
+                <div class="header-actions">
+                    <h2><i class="fas fa-database"></i> Dataset: {{ dataset.filename }}</h2>
+                    <div class="nav-buttons">
+                        <a href="/history" class="btn-secondary"><i class="fas fa-arrow-left"></i> Back to History</a>
+                        <a href="/view/{{ dataset.id }}" class="btn-secondary" target="_blank">
+                            <i class="fas fa-eye"></i> View Raw Data
+                        </a>
+                    </div>
+                </div>
+
+                {% if error %}
+                <div class="error-message">
+                    <p>{{ error }}</p>
+                </div>
+                {% endif %}
+
+                <div class="data-info">
+                    <h3><i class="fas fa-info-circle"></i> Dataset Information</h3>
+                    <ul>
+                        <li><strong>Filename:</strong> {{ dataset.filename }}</li>
+                        <li><strong>Mode:</strong> {{ dataset.mode|title }} Mode</li>
+                        <li><strong>Format:</strong> {{ dataset.format|upper }} Format</li>
+                        <li><strong>Entity Count:</strong> {{ dataset.entity_count }} entities</li>
+                        <li><strong>Created:</strong> {{ dataset.timestamp[:19].replace("T", " ") }}</li>
+                    </ul>
+                </div>
+
+                <div class="visualization-section">
+                    <h3><i class="fas fa-chart-line"></i> Entity Visualization</h3>
+
+                    <div class="chart-controls">
+                        <label for="chart-type">Chart Type:</label>
+                        <select id="chart-type">
+                            <option value="bar">Bar Chart</option>
+                            <option value="pie">Pie Chart</option>
+                            <option value="doughnut">Doughnut Chart</option>
+                        </select>
+
+                        <label for="data-field">Entity Type:</label>
+                        <select id="data-field">
+                            <!-- Will be populated by JavaScript -->
+                        </select>
+
+                        <button id="generate-chart"><i class="fas fa-sync"></i> Generate Chart</button>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="data-chart"></canvas>
+                    </div>
+
+                    <div id="entity-list-container" style="display: none;">
+                        <h4><i class="fas fa-list"></i> Entity Examples</h4>
+                        <div id="entity-list" class="entity-list">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Made with <i class="fas fa-heart"></i> for AI researchers and developers</p>
+            <p><a href="https://github.com" target="_blank"><i class="fab fa-github"></i> View on GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Get chart data from template
+        let chartData;
+        try {
+            chartData = JSON.parse('{{ chart_data|safe }}');
+            console.log('Chart data:', chartData);
+        } catch (e) {
+            console.error('Error parsing chart data:', e);
+            console.log('Raw chart_data string:', '{{ chart_data|safe }}');
+            chartData = null;
+        }
+
+        // Initialize chart
+        let currentChart = null;
+
+        // Populate data fields dropdown
+        function populateDataFields() {
+            const dataFieldSelect = document.getElementById('data-field');
+            dataFieldSelect.innerHTML = '';
+
+            // Handle case where chartData might be undefined, null, or invalid
+            if (!chartData) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No data available';
+                dataFieldSelect.appendChild(option);
+                return;
+            }
+
+            if (chartData.error) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No data available: ' + (chartData.error || '');
+                dataFieldSelect.appendChild(option);
+                return;
+            }
+
+            if (chartData.type === 'spacy') {
+                // For spaCy data, we have entity counts
+                const entityCounts = chartData.entity_counts || {};
+                const labels = Object.keys(entityCounts);
+                if (labels.length > 0) {
+                    labels.forEach(label => {
+                        const option = document.createElement('option');
+                        option.value = label;
+                        option.textContent = label + ' (' + (entityCounts[label] || 0) + ')';
+                        dataFieldSelect.appendChild(option);
+                    });
+                } else {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'No entity types available';
+                    dataFieldSelect.appendChild(option);
+                }
+            } else if (chartData.type === 'csv') {
+                // For CSV data, we have label columns
+                const labelColumns = chartData.label_columns || [];
+                if (labelColumns.length > 0) {
+                    labelColumns.forEach(column => {
+                        const option = document.createElement('option');
+                        option.value = column;
+                        option.textContent = column;
+                        dataFieldSelect.appendChild(option);
+                    });
+                } else {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'No label columns available';
+                    dataFieldSelect.appendChild(option);
+                }
+            } else {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No visualizable data';
+                dataFieldSelect.appendChild(option);
+            }
+        }
+
+        // Show entity examples for the selected entity type
+        function showEntityExamples(entityType) {
+            const entityListContainer = document.getElementById('entity-list-container');
+            const entityList = document.getElementById('entity-list');
+            entityList.innerHTML = '';
+
+            if (chartData.type === 'spacy' && chartData.entity_texts && chartData.entity_texts[entityType]) {
+                const entities = chartData.entity_texts[entityType];
+                if (entities.length > 0) {
+                    entityListContainer.style.display = 'block';
+                    entities.slice(0, 20).forEach(entity => {
+                        const entityItem = document.createElement('div');
+                        entityItem.className = 'entity-item';
+                        entityItem.innerHTML = `<span class="entity-label">${entityType}:</span> ${entity}`;
+                        entityList.appendChild(entityItem);
+                    });
+                } else {
+                    entityListContainer.style.display = 'none';
+                }
+            } else if (chartData.type === 'csv' && chartData.entity_texts) {
+                // For CSV, show entities grouped by label
+                entityListContainer.style.display = 'block';
+                for (const [column, groupedEntities] of Object.entries(chartData.entity_texts)) {
+                    if (groupedEntities[entityType]) {
+                        const entities = groupedEntities[entityType];
+                        entities.slice(0, 10).forEach(entity => {
+                            const entityItem = document.createElement('div');
+                            entityItem.className = 'entity-item';
+                            entityItem.innerHTML = `<span class="entity-label">${entityType}:</span> ${entity}`;
+                            entityList.appendChild(entityItem);
+                        });
+                    }
+                }
+            } else {
+                entityListContainer.style.display = 'none';
+            }
+        }
+
+        // Generate chart based on selected type and field
+        function generateChart() {
+            const chartType = document.getElementById('chart-type').value;
+            const dataField = document.getElementById('data-field').value;
+
+            // Hide entity list
+            document.getElementById('entity-list-container').style.display = 'none';
+
+            // Destroy existing chart if it exists
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            // Check if we have data to visualize
+            if (chartData.error) {
+                alert('Error: ' + chartData.error);
+                return;
+            }
+
+            if (!dataField || dataField === '') {
+                alert('Please select an entity type to visualize');
+                return;
+            }
+
+            const ctx = document.getElementById('data-chart').getContext('2d');
+
+            let chartDataObj = {};
+            let chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: chartType === 'pie' || chartType === 'doughnut'
+                    }
+                }
+            };
+
+            if (chartData.type === 'spacy' && chartData.entity_counts) {
+                // Visualize spaCy entity counts
+                const entityCounts = chartData.entity_counts || {};
+                const labels = Object.keys(entityCounts);
+                const data = Object.values(entityCounts);
+
+                // Handle case where there's no data
+                if (labels.length === 0) {
+                    // Show placeholder message
+                    const ctx = document.getElementById('data-chart').getContext('2d');
+                    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No entity data available for visualization', ctx.canvas.width / 2, ctx.canvas.height / 2);
+                    return;
+                }
+
+                chartDataObj = {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Entity Count',
+                        data: data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 205, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)',
+                            'rgba(255, 159, 64, 0.7)',
+                            'rgba(199, 199, 199, 0.7)',
+                            'rgba(83, 102, 255, 0.7)',
+                            'rgba(255, 102, 255, 0.7)',
+                            'rgba(102, 255, 102, 0.7)'
+                        ].slice(0, labels.length).concat([
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 205, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)',
+                            'rgba(255, 159, 64, 0.7)',
+                            'rgba(199, 199, 199, 0.7)',
+                            'rgba(83, 102, 255, 0.7)',
+                            'rgba(255, 102, 255, 0.7)',
+                            'rgba(102, 255, 102, 0.7)'
+                        ]),
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 205, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)',
+                            'rgba(199, 199, 199, 1)',
+                            'rgba(83, 102, 255, 1)',
+                            'rgba(255, 102, 255, 1)',
+                            'rgba(102, 255, 102, 1)'
+                        ].slice(0, labels.length).concat([
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 205, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)',
+                            'rgba(199, 199, 199, 1)',
+                            'rgba(83, 102, 255, 1)',
+                            'rgba(255, 102, 255, 1)',
+                            'rgba(102, 255, 102, 1)'
+                        ]),
+                        borderWidth: 1
+                    }]
+                };
+
+                // Show entity examples for the selected type
+                showEntityExamples(dataField);
+            } else if (chartData.type === 'csv' && chartData.label_counts && chartData.label_counts[dataField]) {
+                // Visualize CSV label counts
+                const valueCounts = chartData.label_counts[dataField];
+                const labels = Object.keys(valueCounts);
+                const data = Object.values(valueCounts);
+
+                chartDataObj = {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Label Count',
+                        data: data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 205, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)',
+                            'rgba(255, 159, 64, 0.7)',
+                            'rgba(199, 199, 199, 0.7)',
+                            'rgba(83, 102, 255, 0.7)',
+                            'rgba(255, 102, 255, 0.7)',
+                            'rgba(102, 255, 102, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 205, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)',
+                            'rgba(199, 199, 199, 1)',
+                            'rgba(83, 102, 255, 1)',
+                            'rgba(255, 102, 255, 1)',
+                            'rgba(102, 255, 102, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                };
+            } else {
+                // Show placeholder message
+                const ctx = document.getElementById('data-chart').getContext('2d');
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No data available for visualization', ctx.canvas.width / 2, ctx.canvas.height / 2);
+                return;
+            }
+
+            // Create chart
+            currentChart = new Chart(ctx, {
+                type: chartType,
+                data: chartDataObj,
+                options: chartOptions
+            });
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('Initializing visualization with chartData:', chartData);
+
+            // Ensure chartData is available
+            if (typeof chartData !== 'undefined' && chartData !== null) {
+                populateDataFields();
+
+                // Set up event listeners
+                document.getElementById('generate-chart').addEventListener('click', generateChart);
+                document.getElementById('data-field').addEventListener('change', function () {
+                    if (this.value && this.value !== '') {
+                        generateChart();
+                    }
+                });
+
+                // Generate initial chart if we have data
+                setTimeout(function () {
+                    const dataField = document.getElementById('data-field');
+                    if (dataField && dataField.options.length > 0 &&
+                        dataField.options[0].value !== '') {
+                        // Select the first option and generate chart
+                        dataField.selectedIndex = 0;
+                        generateChart();
+                    }
+                }, 100);
+            } else {
+                // Handle case where chartData is not available
+                console.log('No chart data available');
+                const dataFieldSelect = document.getElementById('data-field');
+                if (dataFieldSelect) {
+                    dataFieldSelect.innerHTML = '';
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'No data available';
+                    dataFieldSelect.appendChild(option);
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

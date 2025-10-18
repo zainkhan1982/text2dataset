@@ -53,6 +53,10 @@ class CommunityDatasets:
         self.gridfs = None  # For GridFS file storage
         self.use_mongodb = False
         
+        # For collaborative editing
+        self.collaborative_edits_collection = None  # For tracking collaborative edits
+        self.dataset_comments_collection = None  # For dataset comments
+        
         # Try to connect to MongoDB if URI is provided
         if mongodb_uri and MONGO_AVAILABLE and MongoClient:
             try:
@@ -65,6 +69,8 @@ class CommunityDatasets:
                 self.dataset_collections_collection = self.db["dataset_collections"]  # Collection for dataset collections
                 self.notifications_collection = self.db["notifications"]  # Collection for notifications
                 self.api_keys_collection = self.db["api_keys"]  # Collection for API key management
+                self.collaborative_edits_collection = self.db["collaborative_edits"]  # Collection for collaborative edits
+                self.dataset_comments_collection = self.db["dataset_comments"]  # Collection for dataset comments
                 self.gridfs = GridFS(self.db) if GridFS else None
                 # Test connection
                 self.client.admin.command('ping')
@@ -154,6 +160,124 @@ class CommunityDatasets:
             return True
         except Exception as e:
             print(f"Error sharing dataset: {e}")
+            return False
+            
+    def add_collaborator(self, dataset_id: str, user_name: str, permissions: List[str]) -> bool:
+        """Add a collaborator to a dataset
+        
+        Args:
+            dataset_id (str): Dataset ID
+            user_name (str): Username of collaborator
+            permissions (List[str]): List of permissions (read, write, admin)
+            
+        Returns:
+            bool: True if added successfully
+        """
+        try:
+            if self.use_mongodb and self.collection is not None:
+                # Update dataset with new collaborator
+                self.collection.update_one(
+                    {"id": dataset_id},
+                    {"$addToSet": {"collaborators": {
+                        "user_name": user_name,
+                        "permissions": permissions,
+                        "added_at": datetime.datetime.now().isoformat()
+                    }}}
+                )
+                return True
+            else:
+                # File-based implementation would go here
+                return False
+        except Exception as e:
+            print(f"Error adding collaborator: {e}")
+            return False
+            
+    def add_dataset_comment(self, dataset_id: str, user_name: str, comment: str) -> bool:
+        """Add a comment to a dataset
+        
+        Args:
+            dataset_id (str): Dataset ID
+            user_name (str): Username of commenter
+            comment (str): Comment text
+            
+        Returns:
+            bool: True if added successfully
+        """
+        try:
+            comment_entry = {
+                "dataset_id": dataset_id,
+                "user_name": user_name,
+                "comment": comment,
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+            
+            if self.use_mongodb and self.dataset_comments_collection is not None:
+                self.dataset_comments_collection.insert_one(comment_entry)
+                return True
+            else:
+                # File-based implementation would go here
+                return False
+        except Exception as e:
+            print(f"Error adding comment: {e}")
+            return False
+            
+    def get_dataset_comments(self, dataset_id: str) -> List[Dict]:
+        """Get all comments for a dataset
+        
+        Args:
+            dataset_id (str): Dataset ID
+            
+        Returns:
+            List[Dict]: List of comments
+        """
+        try:
+            if self.use_mongodb and self.dataset_comments_collection is not None:
+                comments = list(self.dataset_comments_collection.find({"dataset_id": dataset_id}))
+                # Convert ObjectId to string
+                for comment in comments:
+                    if '_id' in comment and ObjectId is not None:
+                        comment['id'] = str(comment['_id'])
+                        del comment['_id']
+                return comments
+            else:
+                # File-based implementation would go here
+                return []
+        except Exception as e:
+            print(f"Error retrieving comments: {e}")
+            return []
+            
+    def track_edit(self, dataset_id: str, user_name: str, edit_description: str, 
+                   old_content: str, new_content: str) -> bool:
+        """Track a collaborative edit to a dataset
+        
+        Args:
+            dataset_id (str): Dataset ID
+            user_name (str): Username of editor
+            edit_description (str): Description of the edit
+            old_content (str): Content before edit
+            new_content (str): Content after edit
+            
+        Returns:
+            bool: True if tracked successfully
+        """
+        try:
+            edit_entry = {
+                "dataset_id": dataset_id,
+                "user_name": user_name,
+                "edit_description": edit_description,
+                "timestamp": datetime.datetime.now().isoformat(),
+                "old_content": old_content,
+                "new_content": new_content
+            }
+            
+            if self.use_mongodb and self.collaborative_edits_collection is not None:
+                self.collaborative_edits_collection.insert_one(edit_entry)
+                return True
+            else:
+                # File-based implementation would go here
+                return False
+        except Exception as e:
+            print(f"Error tracking edit: {e}")
             return False
             
     def generate_id(self) -> int:

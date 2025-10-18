@@ -1,0 +1,35 @@
+[
+  {
+    "text": "Apple is a technology company.",
+    "entities": [
+      {
+        "text": "Apple",
+        "label": "ORG",
+        "start": 0,
+        "end": 5
+      }
+    ]
+  },
+  {
+    "text": "Microsoft is also a technology company.",
+    "entities": [
+      {
+        "text": "Microsoft",
+        "label": "ORG",
+        "start": 0,
+        "end": 9
+      }
+    ]
+  },
+  {
+    "text": "Google is a search engine company.",
+    "entities": [
+      {
+        "text": "Google",
+        "label": "ORG",
+        "start": 0,
+        "end": 6
+      }
+    ]
+  }
+]

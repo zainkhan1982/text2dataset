@@ -25,6 +25,9 @@ load_dotenv()
 from dataset_history import dataset_history
 from community_datasets import community_datasets
 
+# Import enhanced NLP module
+from enhanced_nlp import process_text_enhanced, process_multilanguage_text
+
 # Security
 security = HTTPBasic()
 # Simple user storage (in production, use a proper database)
@@ -63,6 +66,10 @@ def get_user_id(username: str) -> Optional[str]:
         except Exception:
             return None
     return None
+
+# Global user plans dictionary to store user plan information
+user_plans = {}
+
 
 def add_user_dataset(user_id: str, filename: str, mode: str, format_type: str, entity_count: int, file_content: Optional[bytes] = None):
     """Add a dataset to a user's history using MongoDB."""
@@ -217,6 +224,41 @@ def create_default_admin():
 create_default_admin()
 
 app = FastAPI()
+
+@app.get("/plans", response_class=HTMLResponse)
+async def plans_page(request: Request):
+    """Display plans page"""
+    # Get current user
+    current_user = get_current_user(request)
+    
+    # Default to basic plan
+    user_plan = "basic"
+    
+    # Check if user has premium plan
+    if current_user and current_user in user_plans and user_plans[current_user] == "premium":
+        user_plan = "premium"
+    
+    return templates.TemplateResponse("plans.html", {
+        "request": request,
+        "current_user": current_user,
+        "user_plan": user_plan
+    })
+
+@app.get("/api/user_plan")
+async def get_user_plan(request: Request):
+    """API endpoint to get current user's plan"""
+    # Get current user
+    current_user = get_current_user(request)
+    
+    # Default to basic plan
+    user_plan = "basic"
+    
+    # Check if user has premium plan
+    if current_user and current_user in user_plans and user_plans[current_user] == "premium":
+        user_plan = "premium"
+    
+    return JSONResponse({"plan": user_plan})
+
 
 # Mount static files and templates
 try:
@@ -1062,6 +1104,79 @@ async def get_user_datasets_api(request: Request):
         print(f"API: No user ID found for user {current_user}")
         return JSONResponse([])
 
+# Global user plans dictionary to store user plan information
+user_plans = {}
+
+@app.get("/health")
+async def health_check_endpoint():
+    """Health check endpoint"""
+    # Check MongoDB connection
+    try:
+        mongo_status = "not configured"
+        if hasattr(community_datasets, 'use_mongodb') and community_datasets.use_mongodb and community_datasets.client is not None:
+            # Test MongoDB connection
+            community_datasets.client.admin.command('ping')
+            mongo_status = "connected"
+        elif hasattr(dataset_history, 'use_mongodb') and dataset_history.use_mongodb and dataset_history.client is not None:
+            # Test MongoDB connection
+            dataset_history.client.admin.command('ping')
+            mongo_status = "connected"
+        else:
+            mongo_status = "using file storage"
+    except Exception as e:
+        mongo_status = f"error: {str(e)}"
+    
+    return JSONResponse({
+        "status": "healthy",
+        "mongodb": mongo_status,
+        "community_datasets_count": len(community_datasets.get_community_datasets()),
+        "history_datasets_count": len(dataset_history.get_history())
+    })
+
+@app.get("/api/current_user_plan")
+async def api_get_current_user_plan(request: Request):
+    """API endpoint to get current user's plan"""
+    # Get current user
+    current_user = get_current_user(request)
+    
+    # Default to basic plan
+    user_plan = "basic"
+    
+    # Check if user has premium plan
+    if current_user and current_user in user_plans and user_plans[current_user] == "premium":
+        user_plan = "premium"
+    
+    return JSONResponse({"plan": user_plan})
+
+@app.post("/upgrade_plan")
+async def upgrade_user_plan_endpoint(request: Request):
+    """Upgrade user's plan to premium"""
+    # Get current user
+    current_user = get_current_user(request)
+    
+    if not current_user:
+        return JSONResponse({"success": False, "message": "You must be logged in"}, status_code=401)
+    
+    # In a real application, this would involve payment processing
+    # For now, we'll just upgrade the user's plan
+    user_plans[current_user] = "premium"
+    
+    return JSONResponse({"success": True, "message": "Plan upgraded successfully"})
+
+@app.post("/downgrade_plan")
+async def downgrade_user_plan_endpoint(request: Request):
+    """Downgrade user's plan to basic"""
+    # Get current user
+    current_user = get_current_user(request)
+    
+    if not current_user:
+        return JSONResponse({"success": False, "message": "You must be logged in"}, status_code=401)
+    
+    # Downgrade the user's plan
+    user_plans[current_user] = "basic"
+    
+    return JSONResponse({"success": True, "message": "Plan downgraded successfully"})
+
 @app.post("/delete_user_dataset/{dataset_id}")
 async def delete_user_dataset(dataset_id: str, request: Request):
     """Delete a user's own dataset from history"""
@@ -1448,32 +1563,6 @@ async def edit_dataset_page(dataset_id: str, request: Request):
             "current_user": get_current_user(request) if hasattr(request, 'cookies') else None,
             "error": f"Error loading edit page: {str(e)}"
         })
-
-@app.get("/dataset/{dataset_id}/versions", response_class=HTMLResponse)
-async def dataset_versions_page(dataset_id: str, request: Request):
-    """Display dataset versions page"""
-    # Get current user
-    current_user = get_current_user(request)
-    
-    # Get dataset
-    dataset = community_datasets.get_dataset_by_id(dataset_id)
-    if not dataset:
-        return templates.TemplateResponse("community.html", {
-            "request": request,
-            "datasets": [],
-            "current_user": current_user,
-            "error": "Dataset not found"
-        })
-    
-    # Get dataset versions
-    versions = community_datasets.get_dataset_versions(dataset_id)
-    
-    return templates.TemplateResponse("dataset_versions.html", {
-        "request": request,
-        "dataset": dataset,
-        "versions": versions,
-        "current_user": current_user
-    })
 
 
 @app.post("/dataset/{dataset_id}/edit")

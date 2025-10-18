@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Text2Dataset - Convert Text to Dataset</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 
@@ -37,6 +40,7 @@
                     <li><a href="/notifications"><i class="fas fa-bell"></i> Notifications</a></li>
                     <li><a href="/api_docs"><i class="fas fa-code"></i> API</a></li>
                     {% endif %}
+                    <li><a href="/plans"><i class="fas fa-credit-card"></i> Plans</a></li>
                     <li><a href="#upload" id="upload-nav-link"><i class="fas fa-upload"></i> Upload</a></li>
                 </ul>
             </nav>
@@ -89,8 +93,26 @@
                         <div class="option-group">
                             <label for="mode">Processing Mode:</label>
                             <select id="mode" name="mode">
-                                <option value="fast">Fast Mode (Rule-based)</option>
-                                <option value="smart">Smart Mode (AI-powered)</option>
+                                <option value="fast">Basic Plan - Fast Mode (Rule-based)</option>
+                                <option value="smart">Basic Plan - Smart Mode (AI-powered)</option>
+                                <option value="enhanced">Premium Plan - Enhanced Mode (Transformer-based)</option>
+                            </select>
+                        </div>
+
+                        <div class="option-group">
+                            <label for="language">Language:</label>
+                            <select id="language" name="language">
+                                <option value="en">English</option>
+                                <option value="es">Spanish</option>
+                                <option value="fr">French</option>
+                                <option value="de">German</option>
+                                <option value="it">Italian</option>
+                                <option value="pt">Portuguese</option>
+                                <option value="ru">Russian</option>
+                                <option value="zh">Chinese</option>
+                                <option value="ja">Japanese</option>
+                                <option value="ko">Korean</option>
+                                <option value="ar">Arabic</option>
                             </select>
                         </div>
 
@@ -121,6 +143,11 @@
                             <option value="">-- Select a Dataset --</option>
                             <!-- We'll populate this with user's datasets via JavaScript -->
                         </select>
+                        <div style="margin-top: 10px;">
+                            <a href="#" id="visualize-selected-dataset" class="btn-secondary" style="display: none;">
+                                <i class="fas fa-chart-bar"></i> Visualize Selected Dataset
+                            </a>
+                        </div>
                     </div>
 
                     <div class="input-group">
@@ -230,6 +257,19 @@
             }
         });
 
+        // Handle visualization of selected dataset
+        document.getElementById('share_dataset_id').addEventListener('change', function () {
+            const datasetId = this.value;
+            const visualizeButton = document.getElementById('visualize-selected-dataset');
+
+            if (datasetId) {
+                visualizeButton.href = `/visualize/${datasetId}`;
+                visualizeButton.style.display = 'inline-flex';
+            } else {
+                visualizeButton.style.display = 'none';
+            }
+        });
+
         document.getElementById('dataset-form').addEventListener('submit', function (e) {
             e.preventDefault(); // Prevent default form submission
 
@@ -237,62 +277,107 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             btn.disabled = true;
 
-            // Create FormData object
-            const formData = new FormData(this);
+            // Check if enhanced mode is selected
+            const mode = document.getElementById('mode').value;
+            const language = document.getElementById('language').value;
 
-            // Send request using fetch
-            fetch('/generate', {
-                method: 'POST',
-                body: formData
-            })
-                .then(response => {
-                    if (response.ok) {
-                        // Extract filename from Content-Disposition header
-                        const contentDisposition = response.headers.get('Content-Disposition');
-                        let filename = 'dataset.csv'; // default filename
+            // Store reference to the form
+            const formElement = this;
 
-                        if (contentDisposition) {
-                            // Extract filename from header like: attachment; filename="dataset_custom_123.csv"
-                            const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-                            if (filenameMatch && filenameMatch[1]) {
-                                filename = filenameMatch[1];
-                            }
+            // First, check if user has premium plan for enhanced features
+            if (mode === 'enhanced' || language !== 'en') {
+                fetch('/api/user_plan')
+                    .then(response => response.json())
+                    .then(data => {
+                        if ((mode === 'enhanced' || language !== 'en') && data.plan !== 'premium') {
+                            alert('Upgrade to premium to use enhanced NLP features and multi-language support!');
+                            // Reset button
+                            btn.innerHTML = '<i class="fas fa-cogs"></i> Generate Dataset';
+                            btn.disabled = false;
+                            return;
                         }
+                        // If user has premium or is not using enhanced features, proceed
+                        processDataset();
+                    })
+                    .catch(error => {
+                        console.error('Error checking user plan:', error);
+                        // Proceed anyway in case of error
+                        processDataset();
+                    });
+            } else {
+                // Not using enhanced features, proceed directly
+                processDataset();
+            }
 
-                        // Create a blob from the response
-                        return response.blob().then(blob => ({ blob, filename }));
+            function processDataset() {
+                // Create FormData object using the form reference
+                const formData = new FormData(formElement);
+
+                // Determine endpoint based on mode
+                let endpoint = '/generate';
+                if (mode === 'enhanced' || language !== 'en') {
+                    // For enhanced mode or non-English languages, we'll handle differently
+                    // since the current form submission approach works with /generate
+                    // We'll add the enhanced NLP flag to the form data
+                    if (mode === 'enhanced') {
+                        formData.append('use_enhanced_nlp', 'true');
                     }
-                    throw new Error('Network response was not ok.');
+                }
+
+                // Send request using fetch
+                fetch(endpoint, {
+                    method: 'POST',
+                    body: formData
                 })
-                .then(({ blob, filename }) => {
-                    // Create a download link
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
+                    .then(response => {
+                        if (response.ok) {
+                            // Extract filename from Content-Disposition header
+                            const contentDisposition = response.headers.get('Content-Disposition');
+                            let filename = 'dataset.csv'; // default filename
 
-                    // Clean up
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
+                            if (contentDisposition) {
+                                // Extract filename from header like: attachment; filename="dataset_custom_123.csv"
+                                const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                                if (filenameMatch && filenameMatch[1]) {
+                                    filename = filenameMatch[1];
+                                }
+                            }
 
-                    // Reset button
-                    btn.innerHTML = '<i class="fas fa-cogs"></i> Generate Dataset';
-                    btn.disabled = false;
+                            // Create a blob from the response
+                            return response.blob().then(blob => ({ blob, filename }));
+                        }
+                        throw new Error('Network response was not ok.');
+                    })
+                    .then(({ blob, filename }) => {
+                        // Create a download link
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
 
-                    // Optionally, reload the page to show updated history
-                    setTimeout(() => {
-                        location.reload();
-                    }, 1000);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    // Reset button even if there's an error
-                    btn.innerHTML = '<i class="fas fa-cogs"></i> Generate Dataset';
-                    btn.disabled = false;
-                    alert('An error occurred during processing. Please try again.');
-                });
+                        // Clean up
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+
+                        // Reset button
+                        btn.innerHTML = '<i class="fas fa-cogs"></i> Generate Dataset';
+                        btn.disabled = false;
+
+                        // Optionally, reload the page to show updated history
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        // Reset button even if there's an error
+                        btn.innerHTML = '<i class="fas fa-cogs"></i> Generate Dataset';
+                        btn.disabled = false;
+                        alert('An error occurred during processing. Please try again.');
+                    });
+            }
         });
 
         // Handle share form submission
